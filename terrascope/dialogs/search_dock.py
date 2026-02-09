@@ -46,6 +46,11 @@ from qgis.core import (
     QgsField,
     QgsPointXY,
     QgsFillSymbol,
+    QgsRasterShader,
+    QgsColorRampShader,
+    QgsSingleBandPseudoColorRenderer,
+    QgsMultiBandColorRenderer,
+    QgsStyle,
 )
 from qgis.PyQt.QtCore import QVariant
 
@@ -280,6 +285,62 @@ class SearchDockWidget(QDockWidget):
         self.asset_combo.setEditable(True)
         asset_row.addWidget(self.asset_combo)
         collection_layout.addLayout(asset_row)
+
+        # Render mode
+        render_row = QHBoxLayout()
+        render_row.addWidget(QLabel("Render:"))
+        self.render_mode_combo = QComboBox()
+        self.render_mode_combo.addItem("Single Band (Colormap)", "singleband")
+        self.render_mode_combo.addItem("RGB Composite", "rgb")
+        self.render_mode_combo.currentIndexChanged.connect(self._on_render_mode_changed)
+        render_row.addWidget(self.render_mode_combo)
+        collection_layout.addLayout(render_row)
+
+        # Colormap selection
+        self.colormap_row = QHBoxLayout()
+        self.colormap_row_label = QLabel("Colormap:")
+        self.colormap_row.addWidget(self.colormap_row_label)
+        self.colormap_combo = QComboBox()
+        self._populate_colormaps()
+        self.colormap_row.addWidget(self.colormap_combo)
+        collection_layout.addLayout(self.colormap_row)
+
+        # Min/Max for colormap
+        self.min_max_row = QHBoxLayout()
+        self.min_max_row.addWidget(QLabel("Min:"))
+        self.colormap_min_spin = QDoubleSpinBox()
+        self.colormap_min_spin.setRange(-10000, 10000)
+        self.colormap_min_spin.setDecimals(2)
+        self.colormap_min_spin.setValue(0)
+        self.min_max_row.addWidget(self.colormap_min_spin)
+        self.min_max_row.addWidget(QLabel("Max:"))
+        self.colormap_max_spin = QDoubleSpinBox()
+        self.colormap_max_spin.setRange(-10000, 10000)
+        self.colormap_max_spin.setDecimals(2)
+        self.colormap_max_spin.setValue(250)
+        self.min_max_row.addWidget(self.colormap_max_spin)
+        collection_layout.addLayout(self.min_max_row)
+
+        # RGB band selection (hidden by default)
+        self.rgb_row = QHBoxLayout()
+        self.rgb_row_label = QLabel("Bands (R,G,B):")
+        self.rgb_row.addWidget(self.rgb_row_label)
+        self.red_band_spin = QSpinBox()
+        self.red_band_spin.setRange(1, 20)
+        self.red_band_spin.setValue(1)
+        self.rgb_row.addWidget(self.red_band_spin)
+        self.green_band_spin = QSpinBox()
+        self.green_band_spin.setRange(1, 20)
+        self.green_band_spin.setValue(2)
+        self.rgb_row.addWidget(self.green_band_spin)
+        self.blue_band_spin = QSpinBox()
+        self.blue_band_spin.setRange(1, 20)
+        self.blue_band_spin.setValue(3)
+        self.rgb_row.addWidget(self.blue_band_spin)
+        collection_layout.addLayout(self.rgb_row)
+
+        # Initially show single band controls, hide RGB
+        self._set_rgb_visible(False)
 
         layout.addWidget(collection_group)
 
@@ -527,6 +588,136 @@ class SearchDockWidget(QDockWidget):
         """
         self.asset_combo.clear()
         self.asset_combo.addItem(f"Error: {error_msg}")
+
+    def _populate_colormaps(self):
+        """Populate the colormap combo with available color ramps."""
+        style = QgsStyle.defaultStyle()
+        ramp_names = [
+            "RdYlGn",
+            "Spectral",
+            "Greens",
+            "RdYlBu",
+            "Viridis",
+            "Turbo",
+            "Plasma",
+            "Inferno",
+            "Magma",
+            "Blues",
+            "Reds",
+            "YlOrRd",
+        ]
+        for name in ramp_names:
+            if style.colorRampNames().count(name) > 0:
+                self.colormap_combo.addItem(name)
+        # Fallback if none found
+        if self.colormap_combo.count() == 0:
+            for name in style.colorRampNames()[:12]:
+                self.colormap_combo.addItem(name)
+
+    def _on_render_mode_changed(self, index):
+        """Handle render mode selection change.
+
+        Args:
+            index: Selected combo index.
+        """
+        mode = self.render_mode_combo.currentData()
+        is_rgb = mode == "rgb"
+        self._set_rgb_visible(is_rgb)
+        self._set_colormap_visible(not is_rgb)
+
+    def _set_rgb_visible(self, visible):
+        """Show or hide RGB band controls.
+
+        Args:
+            visible: Whether to show RGB controls.
+        """
+        self.rgb_row_label.setVisible(visible)
+        self.red_band_spin.setVisible(visible)
+        self.green_band_spin.setVisible(visible)
+        self.blue_band_spin.setVisible(visible)
+
+    def _set_colormap_visible(self, visible):
+        """Show or hide colormap controls.
+
+        Args:
+            visible: Whether to show colormap controls.
+        """
+        self.colormap_row_label.setVisible(visible)
+        self.colormap_combo.setVisible(visible)
+        self.colormap_min_spin.setVisible(visible)
+        self.colormap_max_spin.setVisible(visible)
+
+    def _apply_renderer(self, layer):
+        """Apply the selected render mode to a raster layer.
+
+        Args:
+            layer: QgsRasterLayer to style.
+        """
+        mode = self.render_mode_combo.currentData()
+        if mode == "rgb":
+            self._apply_rgb_renderer(layer)
+        else:
+            self._apply_colormap_renderer(layer)
+
+    def _apply_colormap_renderer(self, layer):
+        """Apply single band pseudocolor renderer with the selected colormap.
+
+        Args:
+            layer: QgsRasterLayer to style.
+        """
+        ramp_name = self.colormap_combo.currentText()
+        style = QgsStyle.defaultStyle()
+        color_ramp = style.colorRamp(ramp_name)
+        if not color_ramp:
+            return
+
+        min_val = self.colormap_min_spin.value()
+        max_val = self.colormap_max_spin.value()
+
+        shader = QgsRasterShader()
+        color_ramp_shader = QgsColorRampShader(min_val, max_val)
+        color_ramp_shader.setColorRampType(QgsColorRampShader.Interpolated)
+        color_ramp_shader.setSourceColorRamp(color_ramp)
+        color_ramp_shader.classifyColorRamp(5)
+        shader.setRasterShaderFunction(color_ramp_shader)
+
+        renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
+        renderer.setClassificationMin(min_val)
+        renderer.setClassificationMax(max_val)
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
+
+    def _apply_rgb_renderer(self, layer):
+        """Apply multi-band RGB renderer.
+
+        Args:
+            layer: QgsRasterLayer to style.
+        """
+        red = self.red_band_spin.value()
+        green = self.green_band_spin.value()
+        blue = self.blue_band_spin.value()
+
+        renderer = QgsMultiBandColorRenderer(layer.dataProvider(), red, green, blue)
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
+
+    def _get_render_settings(self):
+        """Get current render settings as a dict for passing to other docks.
+
+        Returns:
+            Dict with render mode and parameters.
+        """
+        mode = self.render_mode_combo.currentData()
+        settings = {"mode": mode}
+        if mode == "rgb":
+            settings["red_band"] = self.red_band_spin.value()
+            settings["green_band"] = self.green_band_spin.value()
+            settings["blue_band"] = self.blue_band_spin.value()
+        else:
+            settings["colormap"] = self.colormap_combo.currentText()
+            settings["min_val"] = self.colormap_min_spin.value()
+            settings["max_val"] = self.colormap_max_spin.value()
+        return settings
 
     def _use_canvas_extent(self):
         """Set bounding box from the current map canvas extent."""
@@ -781,6 +972,7 @@ class SearchDockWidget(QDockWidget):
             layer = QgsRasterLayer(f"/vsicurl/{cog_url}", layer_name, "gdal")
             if layer.isValid():
                 QgsProject.instance().addMapLayer(layer)
+                self._apply_renderer(layer)
                 self._add_loaded += 1
             else:
                 self._add_failed += 1
@@ -833,7 +1025,8 @@ class SearchDockWidget(QDockWidget):
         if not self._prepare_gdal_for_loading():
             return
 
-        self._load_to_time_slider(self._search_results, asset_key)
+        render_settings = self._get_render_settings()
+        self._load_to_time_slider(self._search_results, asset_key, render_settings)
 
     # --- Footprint layer ---
 

@@ -612,7 +612,7 @@ class TerrascopePlugin:
             return self._time_slider_dock.get_time_steps()
         return []
 
-    def load_items_to_time_slider(self, items, asset_key):
+    def load_items_to_time_slider(self, items, asset_key, render_settings=None):
         """Load STAC items into the time slider dock.
 
         Opens the time slider dock if not visible, then loads the items.
@@ -620,6 +620,7 @@ class TerrascopePlugin:
         Args:
             items: List of STAC item dicts from TerrascopeSTAC.search().
             asset_key: Asset key to use for COG URLs (e.g., "NDVI").
+            render_settings: Optional dict with render mode and parameters.
         """
         # Ensure time slider dock exists and is visible
         if self._time_slider_dock is None:
@@ -629,4 +630,4 @@ class TerrascopePlugin:
             self._time_slider_dock.raise_()
 
         if self._time_slider_dock:
-            self._time_slider_dock.load_items(items, asset_key)
+            self._time_slider_dock.load_items(items, asset_key, render_settings)
