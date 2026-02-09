@@ -470,6 +470,13 @@ class SearchDockWidget(QDockWidget):
         Args:
             text: Selected collection text.
         """
+        # Clear previous results and footprints
+        self.results_table.setRowCount(0)
+        self._search_results = []
+        self.load_selected_btn.setEnabled(False)
+        self.load_all_btn.setEnabled(False)
+        self._remove_footprint_layer()
+
         idx = self.collection_combo.currentIndex()
         collection_id = self.collection_combo.itemData(idx)
         if collection_id:
