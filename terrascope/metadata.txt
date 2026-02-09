@@ -1,0 +1,39 @@
+[general]
+name=Terrascope
+qgisMinimumVersion=3.28
+description=Search and visualize Terrascope STAC API data with time slider and time series plotting.
+version=0.1.0
+author=Qiusheng Wu
+email=contact@opengeos.org
+
+about=Terrascope QGIS Plugin provides tools for searching, loading, and analyzing Earth observation data from the Terrascope STAC API.
+
+    Features:
+    - Search Terrascope STAC collections with spatial, temporal, and cloud cover filters
+    - Load Cloud Optimized GeoTIFFs (COGs) directly into QGIS via /vsicurl/
+    - Time slider for stepping through multi-temporal raster layers
+    - Interactive time series plotting by clicking map locations
+    - OAuth2 authentication with automatic token refresh
+    - Export time series data to CSV and save plots as images
+
+tracker=https://github.com/opengeos/qgis-terrascope-plugin/issues
+repository=https://github.com/opengeos/qgis-terrascope-plugin
+
+hasProcessingProvider=no
+
+tags=terrascope, stac, remote sensing, time series, ndvi, sentinel, raster, cog
+
+homepage=https://github.com/opengeos/qgis-terrascope-plugin
+category=Raster
+icon=icons/icon.svg
+
+experimental=True
+deprecated=False
+
+changelog=
+    0.1.0 - Initial release
+        - STAC search panel with collection, bbox, date, and cloud cover filters
+        - Time slider for multi-temporal COG layers
+        - Time series plotting with CSV export
+        - OAuth2 authentication with background token refresh
+        - Plugin update checker from GitHub
