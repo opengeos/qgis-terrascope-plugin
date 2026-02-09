@@ -2,6 +2,8 @@
 
 A QGIS plugin for searching and visualizing [Terrascope](https://terrascope.be) STAC API data, with time slider and time series plotting capabilities.
 
+![](https://github.com/user-attachments/assets/226c994f-9ade-4403-b7ca-9ae4e15490ae)
+
 ## Features
 
 - **STAC Search Panel** - Query Terrascope collections with spatial extent, date range, and cloud cover filters
@@ -56,11 +58,15 @@ The plugin handles OAuth2 authentication and automatically refreshes tokens in t
 5. Click **Search**
 6. Select results and click **Load Selected** or **Load All to Time Slider**
 
+![](https://github.com/user-attachments/assets/76bb8932-557d-4dd2-9c9a-000b5c827818)
+
 ### Time Slider
 
 1. Load data via the Search Panel's **Load All to Time Slider** button
 2. Use the slider or transport controls (First, Previous, Next, Last) to step through dates
 3. Enable **Auto-Play** to animate through time steps
+
+![](https://github.com/user-attachments/assets/de3ee35f-745d-4560-ad2f-77a6da7df449)
 
 ### Time Series Plot
 
@@ -69,6 +75,8 @@ The plugin handles OAuth2 authentication and automatically refreshes tokens in t
 3. Click **Activate Point Tool**
 4. Click on the map to extract pixel values at that location across all time steps
 5. Export results with **Export CSV** or **Save Plot**
+
+![](https://github.com/user-attachments/assets/0426b771-ddce-4714-98bb-fc0bd82ec139)
 
 ## Development
 

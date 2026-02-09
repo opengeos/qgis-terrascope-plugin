@@ -25,7 +25,15 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox,
 )
 from qgis.PyQt.QtGui import QFont
-from qgis.core import QgsRasterLayer, QgsProject
+from qgis.core import (
+    QgsRasterLayer,
+    QgsProject,
+    QgsRasterShader,
+    QgsColorRampShader,
+    QgsSingleBandPseudoColorRenderer,
+    QgsMultiBandColorRenderer,
+    QgsStyle,
+)
 
 
 class TimeSliderLoadWorker(QThread):
@@ -240,7 +248,7 @@ class TimeSliderDockWidget(QDockWidget):
             return False
         return True
 
-    def load_items(self, items, asset_key):
+    def load_items(self, items, asset_key, render_settings=None):
         """Load STAC items as raster layers into a layer group.
 
         Pre-fetches metadata in a background thread, then creates layers
@@ -249,6 +257,7 @@ class TimeSliderDockWidget(QDockWidget):
         Args:
             items: List of item dicts from TerrascopeSTAC.search().
             asset_key: Asset key to use for COG URLs (e.g., "NDVI").
+            render_settings: Optional dict with render mode and parameters.
         """
         self.clear()
 
@@ -276,6 +285,7 @@ class TimeSliderDockWidget(QDockWidget):
             return
 
         self._pending_asset_key = asset_key
+        self._render_settings = render_settings
 
         # Show animated (indeterminate) progress
         self.progress_bar.setVisible(True)
@@ -333,6 +343,8 @@ class TimeSliderDockWidget(QDockWidget):
             if layer.isValid():
                 QgsProject.instance().addMapLayer(layer, False)
                 self._layer_group.addLayer(layer)
+                if self._render_settings:
+                    self._apply_render_settings(layer, self._render_settings)
                 self._time_steps.append(
                     {
                         "datetime": item_dict["datetime"],
@@ -380,6 +392,49 @@ class TimeSliderDockWidget(QDockWidget):
             level=0,
             duration=3,
         )
+
+    def _apply_render_settings(self, layer, settings):
+        """Apply render settings to a raster layer.
+
+        Args:
+            layer: QgsRasterLayer to style.
+            settings: Dict with 'mode' and render parameters.
+        """
+        mode = settings.get("mode", "singleband")
+        if mode == "rgb":
+            renderer = QgsMultiBandColorRenderer(
+                layer.dataProvider(),
+                settings.get("red_band", 1),
+                settings.get("green_band", 2),
+                settings.get("blue_band", 3),
+            )
+            layer.setRenderer(renderer)
+        else:
+            ramp_name = settings.get("colormap", "RdYlGn")
+            if ramp_name == "None":
+                return
+
+            min_val = settings.get("min_val", 0)
+            max_val = settings.get("max_val", 250)
+
+            style = QgsStyle.defaultStyle()
+            color_ramp = style.colorRamp(ramp_name)
+            if not color_ramp:
+                return
+
+            shader = QgsRasterShader()
+            color_ramp_shader = QgsColorRampShader(min_val, max_val)
+            color_ramp_shader.setColorRampType(QgsColorRampShader.Interpolated)
+            color_ramp_shader.setSourceColorRamp(color_ramp)
+            color_ramp_shader.classifyColorRamp(5)
+            shader.setRasterShaderFunction(color_ramp_shader)
+
+            renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
+            renderer.setClassificationMin(min_val)
+            renderer.setClassificationMax(max_val)
+            layer.setRenderer(renderer)
+
+        layer.triggerRepaint()
 
     def get_time_steps(self):
         """Get the list of loaded time steps.
