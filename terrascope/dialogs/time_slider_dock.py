@@ -411,6 +411,9 @@ class TimeSliderDockWidget(QDockWidget):
             layer.setRenderer(renderer)
         else:
             ramp_name = settings.get("colormap", "RdYlGn")
+            if ramp_name == "None":
+                return
+
             min_val = settings.get("min_val", 0)
             max_val = settings.get("max_val", 250)
 

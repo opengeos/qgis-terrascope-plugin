@@ -591,6 +591,8 @@ class SearchDockWidget(QDockWidget):
 
     def _populate_colormaps(self):
         """Populate the colormap combo with available color ramps."""
+        self.colormap_combo.addItem("None", "none")
+
         style = QgsStyle.defaultStyle()
         ramp_names = [
             "RdYlGn",
@@ -665,6 +667,9 @@ class SearchDockWidget(QDockWidget):
         Args:
             layer: QgsRasterLayer to style.
         """
+        if self.colormap_combo.currentData() == "none":
+            return
+
         ramp_name = self.colormap_combo.currentText()
         style = QgsStyle.defaultStyle()
         color_ramp = style.colorRamp(ramp_name)
