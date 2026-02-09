@@ -7,7 +7,6 @@ matplotlib chart with export capabilities.
 """
 
 import csv
-import os
 from datetime import datetime
 
 from qgis.PyQt.QtCore import Qt

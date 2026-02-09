@@ -11,7 +11,6 @@ from osgeo import gdal
 
 from qgis.PyQt.QtCore import Qt, QTimer, QThread, pyqtSignal
 from qgis.PyQt.QtWidgets import (
-    QApplication,
     QDockWidget,
     QWidget,
     QVBoxLayout,

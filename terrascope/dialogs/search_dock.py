@@ -12,7 +12,6 @@ from osgeo import gdal
 from qgis.PyQt.QtCore import Qt, QDate, QThread, QTimer, QSize, QSettings, pyqtSignal
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
-    QApplication,
     QDockWidget,
     QWidget,
     QVBoxLayout,
@@ -612,7 +611,6 @@ class SearchDockWidget(QDockWidget):
             self.results_table.setItem(row, 0, date_item)
             self.results_table.setItem(row, 1, QTableWidgetItem(item["id"]))
             cloud = item.get("cloud_cover")
-            cloud_str = f"{cloud:.1f}" if cloud is not None else "N/A"
             cloud_item = QTableWidgetItem()
             cloud_item.setData(Qt.DisplayRole, cloud if cloud is not None else "N/A")
             self.results_table.setItem(row, 2, cloud_item)
@@ -658,7 +656,7 @@ class SearchDockWidget(QDockWidget):
 
         auth = self._get_auth()
         if not auth.ensure_gdal_config():
-            reply = QMessageBox.warning(
+            QMessageBox.warning(
                 self,
                 "Terrascope",
                 "You are not logged in. COG layers require authentication.\n\n"
