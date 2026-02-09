@@ -8,6 +8,7 @@ date range, cloud cover filters, and result loading capabilities.
 import os
 
 from osgeo import gdal
+from qgis.PyQt import sip
 
 from qgis.PyQt.QtCore import Qt, QDate, QThread, QTimer, QSize, QSettings, pyqtSignal
 from qgis.PyQt.QtGui import QIcon
@@ -925,7 +926,7 @@ class SearchDockWidget(QDockWidget):
 
     def _remove_footprint_layer(self):
         """Remove the footprint vector layer from the project."""
-        if self._footprint_layer:
+        if self._footprint_layer and not sip.isdeleted(self._footprint_layer):
             try:
                 self._footprint_layer.selectionChanged.disconnect(
                     self._on_footprint_selection_changed
@@ -935,9 +936,20 @@ class SearchDockWidget(QDockWidget):
             QgsProject.instance().removeMapLayer(self._footprint_layer.id())
             self._footprint_layer = None
 
+    def _is_footprint_layer_valid(self):
+        """Check if the footprint layer still exists and is not deleted.
+
+        Returns:
+            True if the footprint layer is valid.
+        """
+        if not self._footprint_layer or sip.isdeleted(self._footprint_layer):
+            self._footprint_layer = None
+            return False
+        return True
+
     def _on_table_selection_changed(self):
         """Sync table row selection to footprint layer feature selection."""
-        if self._updating_selection or not self._footprint_layer:
+        if self._updating_selection or not self._is_footprint_layer_valid():
             return
 
         self._updating_selection = True
@@ -986,7 +998,7 @@ class SearchDockWidget(QDockWidget):
             deselected: List of deselected feature IDs.
             clear_and_select: Whether this is a clear-and-select operation.
         """
-        if self._updating_selection or not self._footprint_layer:
+        if self._updating_selection or not self._is_footprint_layer_valid():
             return
 
         self._updating_selection = True
