@@ -457,8 +457,8 @@ class SearchDockWidget(QDockWidget):
         self.load_selected_btn.setEnabled(False)
         action_layout.addWidget(self.load_selected_btn)
 
-        self.load_all_btn = QPushButton("Load All to Time Slider")
-        self.load_all_btn.clicked.connect(self._load_all_to_time_slider)
+        self.load_all_btn = QPushButton("Load Selected to Time Slider")
+        self.load_all_btn.clicked.connect(self._load_selected_to_time_slider)
         self.load_all_btn.setEnabled(False)
         action_layout.addWidget(self.load_all_btn)
 
@@ -1013,10 +1013,28 @@ class SearchDockWidget(QDockWidget):
                 duration=5,
             )
 
-    def _load_all_to_time_slider(self):
-        """Load all search results to the time slider."""
-        if not self._search_results:
+    def _load_selected_to_time_slider(self):
+        """Load selected search results to the time slider."""
+        selected_visual_rows = set()
+        for item in self.results_table.selectedItems():
+            selected_visual_rows.add(item.row())
+
+        if not selected_visual_rows:
+            QMessageBox.warning(
+                self, "Terrascope", "Please select at least one result."
+            )
             return
+
+        data_indices = []
+        for visual_row in sorted(selected_visual_rows):
+            date_item = self.results_table.item(visual_row, 0)
+            if date_item is not None:
+                data_indices.append(date_item.data(Qt.UserRole))
+
+        if not data_indices:
+            return
+
+        selected_items = [self._search_results[idx] for idx in data_indices]
 
         asset_key = self.asset_combo.currentText()
         if not asset_key or asset_key in ("Loading...", ""):
@@ -1031,7 +1049,7 @@ class SearchDockWidget(QDockWidget):
             return
 
         render_settings = self._get_render_settings()
-        self._load_to_time_slider(self._search_results, asset_key, render_settings)
+        self._load_to_time_slider(selected_items, asset_key, render_settings)
 
     # --- Footprint layer ---
 
