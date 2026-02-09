@@ -10,7 +10,9 @@ import csv
 from datetime import datetime
 
 from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QCursor
 from qgis.PyQt.QtWidgets import (
+    QApplication,
     QDockWidget,
     QWidget,
     QVBoxLayout,
@@ -192,6 +194,22 @@ class TimeSeriesDockWidget(QDockWidget):
         self.lat_label.setText(f"{display_point.y():.4f}")
         self.lon_label.setText(f"{display_point.x():.4f}")
 
+        # Show wait cursor while extracting pixel values
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        try:
+            self._extract_and_plot(point, display_point, canvas_crs, time_steps)
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _extract_and_plot(self, point, display_point, canvas_crs, time_steps):
+        """Extract pixel values from time-step layers and plot.
+
+        Args:
+            point: QgsPointXY in canvas CRS.
+            display_point: QgsPointXY in WGS84 for display.
+            canvas_crs: CRS of the map canvas.
+            time_steps: List of time step dicts.
+        """
         # Extract values from each time step layer
         band = self.band_combo.currentData() or 1
         data = []
