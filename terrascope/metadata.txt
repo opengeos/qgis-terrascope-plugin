@@ -27,7 +27,7 @@ homepage=https://github.com/opengeos/qgis-terrascope-plugin
 category=Raster
 icon=icons/icon.svg
 
-experimental=True
+experimental=false
 deprecated=False
 
 changelog=
