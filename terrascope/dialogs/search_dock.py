@@ -287,10 +287,11 @@ class SearchDockWidget(QDockWidget):
         coll_row.addWidget(self.refresh_collections_btn)
         collection_layout.addLayout(coll_row)
 
-        # Collection ID label
+        # Collection ID label (clickable link to STAC collection page)
         self.collection_id_label = QLabel("")
-        self.collection_id_label.setStyleSheet("color: gray; font-size: 10px;")
+        self.collection_id_label.setStyleSheet("font-size: 10px;")
         self.collection_id_label.setWordWrap(True)
+        self.collection_id_label.setOpenExternalLinks(True)
         collection_layout.addWidget(self.collection_id_label)
 
         # Asset key
@@ -573,7 +574,20 @@ class SearchDockWidget(QDockWidget):
         idx = self.collection_combo.currentIndex()
         collection_id = self.collection_combo.itemData(idx)
         if collection_id:
-            self.collection_id_label.setText(collection_id)
+            stac_url = QSettings().value(
+                "Terrascope/stac_url", "https://stac.terrascope.be"
+            )
+            api_url = f"{stac_url}/collections/{collection_id}"
+            browser_url = (
+                "https://radiantearth.github.io/stac-browser/#/external/"
+                f"{stac_url}/collections/{collection_id}"
+            )
+            self.collection_id_label.setText(
+                f'<a href="{browser_url}" style="color: gray;">'
+                f"{collection_id}</a>"
+                f' &nbsp;<a href="{api_url}" style="color: gray;">'
+                f"[JSON]</a>"
+            )
             self._fetch_asset_keys(collection_id)
         else:
             self.collection_id_label.setText("")
