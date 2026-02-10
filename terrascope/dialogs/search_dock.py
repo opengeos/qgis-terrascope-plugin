@@ -268,6 +268,12 @@ class SearchDockWidget(QDockWidget):
         """
         self._stop_all_workers()
         self._remove_footprint_layer()
+        try:
+            QgsProject.instance().layerWillBeRemoved.disconnect(
+                self._on_layer_will_be_removed
+            )
+        except Exception:
+            pass
         super().closeEvent(event)
 
     def _setup_ui(self):
@@ -1255,16 +1261,26 @@ class SearchDockWidget(QDockWidget):
         # Connect map feature selection to table
         layer.selectionChanged.connect(self._on_footprint_selection_changed)
 
+        # Detect external removal (user deletes layer from layer panel)
+        QgsProject.instance().layerWillBeRemoved.connect(self._on_layer_will_be_removed)
+
     def _remove_footprint_layer(self):
         """Remove the footprint vector layer from the project."""
-        if self._footprint_layer and not sip.isdeleted(self._footprint_layer):
-            try:
-                self._footprint_layer.selectionChanged.disconnect(
-                    self._on_footprint_selection_changed
-                )
-            except Exception:
-                pass
-            QgsProject.instance().removeMapLayer(self._footprint_layer.id())
+        if self._footprint_layer is not None:
+            if not sip.isdeleted(self._footprint_layer):
+                try:
+                    self._footprint_layer.selectionChanged.disconnect(
+                        self._on_footprint_selection_changed
+                    )
+                except Exception:
+                    pass
+                try:
+                    QgsProject.instance().layerWillBeRemoved.disconnect(
+                        self._on_layer_will_be_removed
+                    )
+                except Exception:
+                    pass
+                QgsProject.instance().removeMapLayer(self._footprint_layer.id())
             self._footprint_layer = None
 
     def _is_footprint_layer_valid(self):
@@ -1277,6 +1293,31 @@ class SearchDockWidget(QDockWidget):
             self._footprint_layer = None
             return False
         return True
+
+    def _on_layer_will_be_removed(self, layer_id):
+        """Handle external layer removal (e.g. user deletes from layer panel).
+
+        Args:
+            layer_id: ID of the layer being removed.
+        """
+        if (
+            self._footprint_layer is not None
+            and not sip.isdeleted(self._footprint_layer)
+            and self._footprint_layer.id() == layer_id
+        ):
+            try:
+                self._footprint_layer.selectionChanged.disconnect(
+                    self._on_footprint_selection_changed
+                )
+            except Exception:
+                pass
+            try:
+                QgsProject.instance().layerWillBeRemoved.disconnect(
+                    self._on_layer_will_be_removed
+                )
+            except Exception:
+                pass
+            self._footprint_layer = None
 
     def _on_table_selection_changed(self):
         """Sync table row selection to footprint layer feature selection."""
