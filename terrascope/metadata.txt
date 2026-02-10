@@ -2,9 +2,9 @@
 name=Terrascope
 qgisMinimumVersion=3.28
 description=Search and visualize Terrascope STAC API data with time slider and time series plotting.
-version=0.1.0
+version=0.2.0
 author=Qiusheng Wu
-email=contact@opengeos.org
+email=giswqs@gmail.com
 
 about=Terrascope QGIS Plugin provides tools for searching, loading, and analyzing Earth observation data from the Terrascope STAC API.
 
@@ -31,6 +31,10 @@ experimental=false
 deprecated=False
 
 changelog=
+    0.2.0
+        - Added Terrain color ramp to the colormap combo
+        - Added a checkbox to disable date range filtering
+        - Added a checkbox to disable cloud cover filtering
     0.1.0 - Initial release
         - STAC search panel with collection, bbox, date, and cloud cover filters
         - Time slider for multi-temporal COG layers
