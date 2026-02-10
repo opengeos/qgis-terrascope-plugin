@@ -10,8 +10,17 @@ import os
 from osgeo import gdal
 from qgis.PyQt import sip
 
-from qgis.PyQt.QtCore import Qt, QDate, QThread, QTimer, QSize, QSettings, pyqtSignal
-from qgis.PyQt.QtGui import QIcon, QColor
+from qgis.PyQt.QtCore import (
+    Qt,
+    QDate,
+    QThread,
+    QTimer,
+    QSize,
+    QSettings,
+    QUrl,
+    pyqtSignal,
+)
+from qgis.PyQt.QtGui import QDesktopServices, QIcon, QColor
 from qgis.PyQt.QtWidgets import (
     QDockWidget,
     QWidget,
@@ -457,17 +466,12 @@ class SearchDockWidget(QDockWidget):
 
         # Results table
         self.results_table = QTableWidget()
-        self.results_table.setColumnCount(3)
-        self.results_table.setHorizontalHeaderLabels(["Date", "ID", "Cloud %"])
-        self.results_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeToContents
-        )
-        self.results_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.Stretch
-        )
-        self.results_table.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.ResizeToContents
-        )
+        self.results_table.setColumnCount(4)
+        self.results_table.setHorizontalHeaderLabels(["Date", "ID", "Cloud %", ""])
+        header = self.results_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.results_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.results_table.setSortingEnabled(True)
@@ -880,6 +884,18 @@ class SearchDockWidget(QDockWidget):
         # Disable sorting while populating to avoid index confusion
         self.results_table.setSortingEnabled(False)
         self.results_table.setRowCount(len(items))
+
+        # Build STAC Browser base URL for item links
+        idx = self.collection_combo.currentIndex()
+        collection_id = self.collection_combo.itemData(idx)
+        stac_url = QSettings().value(
+            "Terrascope/stac_url", "https://stac.terrascope.be"
+        )
+        browser_base = (
+            "https://radiantearth.github.io/stac-browser/#/external/"
+            f"{stac_url}/collections/{collection_id}/items"
+        )
+
         for row, item in enumerate(items):
             date_item = QTableWidgetItem(item["date_str"])
             date_item.setData(Qt.UserRole, row)
@@ -889,6 +905,17 @@ class SearchDockWidget(QDockWidget):
             cloud_item = QTableWidgetItem()
             cloud_item.setData(Qt.DisplayRole, cloud if cloud is not None else "N/A")
             self.results_table.setItem(row, 2, cloud_item)
+
+            # Link button
+            link_btn = QToolButton()
+            link_btn.setText("Info")
+            link_btn.setToolTip("Open in STAC Browser")
+            link_btn.setAutoRaise(True)
+            item_url = f"{browser_base}/{item['id']}"
+            link_btn.clicked.connect(
+                lambda checked, url=item_url: QDesktopServices.openUrl(QUrl(url))
+            )
+            self.results_table.setCellWidget(row, 3, link_btn)
         self.results_table.setSortingEnabled(True)
 
         if items:
