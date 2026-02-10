@@ -166,11 +166,24 @@ class SettingsDockWidget(QDockWidget):
         self.default_collection_edit.setPlaceholderText("terrascope-s2-ndvi-v2")
         general_form.addRow("Default collection:", self.default_collection_edit)
 
+        cloud_row = QHBoxLayout()
+        self.default_cloud_cover_cb = QCheckBox()
+        self.default_cloud_cover_cb.setChecked(False)
+        self.default_cloud_cover_cb.setToolTip(
+            "Uncheck to disable cloud cover filtering\n"
+            "(required for collections without cloud cover metadata)"
+        )
+        cloud_row.addWidget(self.default_cloud_cover_cb)
         self.default_cloud_cover_spin = QSpinBox()
         self.default_cloud_cover_spin.setRange(0, 100)
         self.default_cloud_cover_spin.setValue(30)
         self.default_cloud_cover_spin.setSuffix("%")
-        general_form.addRow("Default max cloud cover:", self.default_cloud_cover_spin)
+        self.default_cloud_cover_spin.setEnabled(False)
+        cloud_row.addWidget(self.default_cloud_cover_spin)
+        self.default_cloud_cover_cb.toggled.connect(
+            self.default_cloud_cover_spin.setEnabled
+        )
+        general_form.addRow("Default max cloud cover:", cloud_row)
 
         self.default_max_results_spin = QSpinBox()
         self.default_max_results_spin.setRange(1, 500)
@@ -301,7 +314,11 @@ class SettingsDockWidget(QDockWidget):
         )
         self._settings.setValue(
             "Terrascope/default_cloud_cover",
-            self.default_cloud_cover_spin.value(),
+            (
+                self.default_cloud_cover_spin.value()
+                if self.default_cloud_cover_cb.isChecked()
+                else -1
+            ),
         )
         self._settings.setValue(
             "Terrascope/default_max_results",
@@ -331,9 +348,10 @@ class SettingsDockWidget(QDockWidget):
         self.default_collection_edit.setText(
             self._settings.value("Terrascope/default_collection", "")
         )
-        self.default_cloud_cover_spin.setValue(
-            int(self._settings.value("Terrascope/default_cloud_cover", 30))
-        )
+        default_cc = int(self._settings.value("Terrascope/default_cloud_cover", -1))
+        self.default_cloud_cover_cb.setChecked(default_cc >= 0)
+        self.default_cloud_cover_spin.setValue(max(default_cc, 30))
+        self.default_cloud_cover_spin.setEnabled(default_cc >= 0)
         self.default_max_results_spin.setValue(
             int(self._settings.value("Terrascope/default_max_results", 50))
         )

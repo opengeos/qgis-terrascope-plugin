@@ -11,7 +11,7 @@ from osgeo import gdal
 from qgis.PyQt import sip
 
 from qgis.PyQt.QtCore import Qt, QDate, QThread, QTimer, QSize, QSettings, pyqtSignal
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QColor
 from qgis.PyQt.QtWidgets import (
     QDockWidget,
     QWidget,
@@ -33,6 +33,7 @@ from qgis.PyQt.QtWidgets import (
     QSizePolicy,
     QMessageBox,
     QGroupBox,
+    QCheckBox,
 )
 from qgis.core import (
     Qgis,
@@ -51,6 +52,8 @@ from qgis.core import (
     QgsSingleBandPseudoColorRenderer,
     QgsMultiBandColorRenderer,
     QgsStyle,
+    QgsGradientColorRamp,
+    QgsGradientStop,
 )
 from qgis.PyQt.QtCore import QVariant
 
@@ -111,16 +114,26 @@ class SearchWorker(QThread):
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
 
-    def __init__(self, stac, collections, bbox, datetime_range, max_cloud_cover, limit):
+    def __init__(
+        self,
+        stac,
+        collections,
+        bbox,
+        datetime_range,
+        max_cloud_cover,
+        limit,
+        unique_dates=True,
+    ):
         """Initialize the search worker.
 
         Args:
             stac: TerrascopeSTAC instance.
             collections: List of collection IDs.
             bbox: Bounding box [west, south, east, north].
-            datetime_range: Tuple of (start, end) date strings.
-            max_cloud_cover: Maximum cloud cover percentage.
+            datetime_range: Tuple of (start, end) date strings, or None.
+            max_cloud_cover: Maximum cloud cover percentage, or None.
             limit: Maximum number of results.
+            unique_dates: If True, return only one item per unique date.
         """
         super().__init__()
         self.stac = stac
@@ -129,6 +142,7 @@ class SearchWorker(QThread):
         self.datetime_range = datetime_range
         self.max_cloud_cover = max_cloud_cover
         self.limit = limit
+        self.unique_dates = unique_dates
 
     def run(self):
         """Execute the STAC search."""
@@ -139,6 +153,7 @@ class SearchWorker(QThread):
                 datetime_range=self.datetime_range,
                 max_cloud_cover=self.max_cloud_cover,
                 limit=self.limit,
+                unique_dates=self.unique_dates,
             )
             self.finished.emit(items)
         except Exception as e:
@@ -375,8 +390,10 @@ class SearchDockWidget(QDockWidget):
         layout.addWidget(bbox_group)
 
         # Date range
-        date_group = QGroupBox("Date Range")
-        date_layout = QFormLayout(date_group)
+        self.date_group = QGroupBox("Date Range")
+        self.date_group.setCheckable(True)
+        self.date_group.setChecked(True)
+        date_layout = QFormLayout(self.date_group)
 
         self.start_date = QDateEdit()
         self.start_date.setCalendarPopup(True)
@@ -388,20 +405,30 @@ class SearchDockWidget(QDockWidget):
         self.end_date.setDate(QDate.currentDate())
         date_layout.addRow("End:", self.end_date)
 
-        layout.addWidget(date_group)
+        layout.addWidget(self.date_group)
 
         # Filters (defaults from QSettings)
         settings = QSettings()
         filter_group = QGroupBox("Filters")
         filter_layout = QFormLayout(filter_group)
 
+        cloud_row = QHBoxLayout()
+        self.cloud_cover_cb = QCheckBox()
+        default_cc = int(settings.value("Terrascope/default_cloud_cover", -1))
+        self.cloud_cover_cb.setChecked(default_cc >= 0)
+        self.cloud_cover_cb.setToolTip(
+            "Uncheck to disable cloud cover filtering\n"
+            "(required for collections without cloud cover metadata)"
+        )
+        cloud_row.addWidget(self.cloud_cover_cb)
         self.cloud_cover_spin = QSpinBox()
         self.cloud_cover_spin.setRange(0, 100)
-        self.cloud_cover_spin.setValue(
-            int(settings.value("Terrascope/default_cloud_cover", 30))
-        )
+        self.cloud_cover_spin.setValue(max(default_cc, 30))
         self.cloud_cover_spin.setSuffix("%")
-        filter_layout.addRow("Max cloud cover:", self.cloud_cover_spin)
+        self.cloud_cover_spin.setEnabled(default_cc >= 0)
+        cloud_row.addWidget(self.cloud_cover_spin)
+        self.cloud_cover_cb.toggled.connect(self.cloud_cover_spin.setEnabled)
+        filter_layout.addRow("Max cloud cover:", cloud_row)
 
         self.max_results_spin = QSpinBox()
         self.max_results_spin.setRange(1, 500)
@@ -461,6 +488,11 @@ class SearchDockWidget(QDockWidget):
         self.load_all_btn.clicked.connect(self._load_selected_to_time_slider)
         self.load_all_btn.setEnabled(False)
         action_layout.addWidget(self.load_all_btn)
+
+        self.clear_btn = QPushButton("Clear")
+        self.clear_btn.clicked.connect(self._clear_results)
+        self.clear_btn.setEnabled(False)
+        action_layout.addWidget(self.clear_btn)
 
         layout.addLayout(action_layout)
 
@@ -594,6 +626,22 @@ class SearchDockWidget(QDockWidget):
         self.colormap_combo.addItem("None", "none")
 
         style = QgsStyle.defaultStyle()
+
+        # Register a custom Terrain ramp if not already in the style
+        if "Terrain" not in style.colorRampNames():
+            terrain_ramp = QgsGradientColorRamp(
+                QColor(51, 51, 153),  # deep blue (water)
+                QColor(255, 255, 255),  # white (peaks)
+                False,
+                [
+                    QgsGradientStop(0.15, QColor(0, 128, 0)),  # green (lowland)
+                    QgsGradientStop(0.30, QColor(255, 255, 0)),  # yellow
+                    QgsGradientStop(0.50, QColor(210, 180, 140)),  # tan
+                    QgsGradientStop(0.75, QColor(139, 90, 43)),  # brown (mountain)
+                ],
+            )
+            style.addColorRamp("Terrain", terrain_ramp)
+
         ramp_names = [
             "RdYlGn",
             "Spectral",
@@ -607,9 +655,10 @@ class SearchDockWidget(QDockWidget):
             "Blues",
             "Reds",
             "YlOrRd",
+            "Terrain",
         ]
         for name in ramp_names:
-            if style.colorRampNames().count(name) > 0:
+            if name in style.colorRampNames():
                 self.colormap_combo.addItem(name)
         # Fallback if none found
         if self.colormap_combo.count() == 0:
@@ -771,8 +820,12 @@ class SearchDockWidget(QDockWidget):
                 return
             bbox = None
 
-        start = self.start_date.date().toString("yyyy-MM-dd")
-        end = self.end_date.date().toString("yyyy-MM-dd")
+        if self.date_group.isChecked():
+            start = self.start_date.date().toString("yyyy-MM-dd")
+            end = self.end_date.date().toString("yyyy-MM-dd")
+            datetime_range = (start, end)
+        else:
+            datetime_range = None
 
         self._remove_footprint_layer()
 
@@ -784,13 +837,17 @@ class SearchDockWidget(QDockWidget):
         self.load_all_btn.setEnabled(False)
 
         stac = self._get_stac()
+        max_cloud = (
+            self.cloud_cover_spin.value() if self.cloud_cover_cb.isChecked() else None
+        )
         worker = SearchWorker(
             stac,
             [collection_id],
             bbox,
-            (start, end),
-            self.cloud_cover_spin.value(),
+            datetime_range,
+            max_cloud,
             self.max_results_spin.value(),
+            unique_dates=self.date_group.isChecked(),
         )
         worker.finished.connect(self._on_search_finished)
         worker.error.connect(self._on_search_error)
@@ -823,6 +880,7 @@ class SearchDockWidget(QDockWidget):
         if items:
             self.load_selected_btn.setEnabled(True)
             self.load_all_btn.setEnabled(True)
+            self.clear_btn.setEnabled(True)
             self._create_footprint_layer(items)
 
         self.iface.messageBar().pushMessage(
@@ -841,6 +899,15 @@ class SearchDockWidget(QDockWidget):
         self.search_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         QMessageBox.critical(self, "Terrascope Search Error", error_msg)
+
+    def _clear_results(self):
+        """Clear the search results table and footprint layer."""
+        self.results_table.setRowCount(0)
+        self._search_results = []
+        self.load_selected_btn.setEnabled(False)
+        self.load_all_btn.setEnabled(False)
+        self.clear_btn.setEnabled(False)
+        self._remove_footprint_layer()
 
     def _prepare_gdal_for_loading(self):
         """Configure GDAL for authenticated COG loading.
