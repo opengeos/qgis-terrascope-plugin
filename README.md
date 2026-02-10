@@ -115,6 +115,20 @@ The plugin requires the following Python packages (auto-installed on first run):
 - `pystac-client` - STAC API client
 - `matplotlib` - Time series plotting (optional, for chart functionality)
 
+## Trouble shooting
+
+Installation issues with dependencies on Windows?
+If you’re using QGIS on Windows, make sure to install Python dependencies from the OSGeo4W Shell, which uses the same Python environment as QGIS.
+1. Open the Windows search bar and search for OSGeo4W Shell
+2. Launch it — this opens a command line configured for the QGIS environment
+3. From this shell, install or upgrade dependencies using pip, for example:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install pystac-client
+```
+
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
