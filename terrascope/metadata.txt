@@ -31,7 +31,7 @@ experimental=false
 deprecated=False
 
 changelog=
-    0.2.0 
+    0.2.0
         - Added Terrain color ramp to the colormap combo
         - Added a checkbox to disable date range filtering
         - Added a checkbox to disable cloud cover filtering
