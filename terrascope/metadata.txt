@@ -25,7 +25,7 @@ tags=terrascope, stac, remote sensing, time series, ndvi, sentinel, raster, cog
 
 homepage=https://github.com/opengeos/qgis-terrascope-plugin
 category=Raster
-icon=icons/icon.svg
+icon=icons/icon.png
 
 experimental=false
 deprecated=False
