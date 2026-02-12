@@ -451,7 +451,12 @@ class TimeSliderDockWidget(QDockWidget):
 
         if self._layer_group:
             root = QgsProject.instance().layerTreeRoot()
-            root.removeChildNode(self._layer_group)
+            # Check if layer group still exists in tree before removing
+            try:
+                if self._layer_group in root.children():
+                    root.removeChildNode(self._layer_group)
+            except RuntimeError:
+                pass  # C++ object already deleted
             self._layer_group = None
 
         self._time_steps = []
