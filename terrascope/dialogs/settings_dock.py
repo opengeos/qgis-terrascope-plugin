@@ -26,7 +26,7 @@ from qgis.PyQt.QtWidgets import (
 
 
 class LoginWorker(QThread):
-    """Worker thread for non-blocking authentication."""
+    """Worker thread for non-blocking authentication setup."""
 
     finished = pyqtSignal(bool, str)
 
@@ -44,10 +44,10 @@ class LoginWorker(QThread):
         self.password = password
 
     def run(self):
-        """Perform the login."""
+        """Set up basic authentication."""
         try:
             self.auth.login(self.username, self.password)
-            self.finished.emit(True, "Authenticated successfully")
+            self.finished.emit(True, "Authentication configured successfully")
         except Exception as e:
             self.finished.emit(False, str(e))
 
@@ -208,16 +208,12 @@ class SettingsDockWidget(QDockWidget):
         advanced_layout = QVBoxLayout(advanced_tab)
         advanced_form = QFormLayout()
 
-        self.refresh_interval_spin = QSpinBox()
-        self.refresh_interval_spin.setRange(60, 600)
-        self.refresh_interval_spin.setValue(240)
-        self.refresh_interval_spin.setSuffix(" seconds")
-        advanced_form.addRow("Token refresh interval:", self.refresh_interval_spin)
+        self.auth_method_label = QLabel("Basic Authentication (GDAL_HTTP_AUTH)")
+        self.auth_method_label.setStyleSheet("font-weight: bold;")
+        advanced_form.addRow("Auth method:", self.auth_method_label)
 
-        self.header_file_edit = QLineEdit()
-        self.header_file_edit.setReadOnly(True)
-        self.header_file_edit.setText("~/.gdal_http_headers")
-        advanced_form.addRow("GDAL header file:", self.header_file_edit)
+        self.env_username_label = QLabel("Not configured")
+        advanced_form.addRow("GDAL_HTTP_USERPWD:", self.env_username_label)
 
         self.debug_cb = QCheckBox("Enable debug logging")
         advanced_form.addRow(self.debug_cb)
@@ -306,6 +302,16 @@ class SettingsDockWidget(QDockWidget):
             self.login_btn.setEnabled(False)
             self.logout_btn.setEnabled(True)
 
+    def update_env_status(self):
+        """Update the environment variable status label."""
+        username = os.environ.get("TERRASCOPE_USERNAME", "")
+        if username:
+            self.env_username_label.setText(f"TERRASCOPE_USERNAME={username}")
+            self.env_username_label.setStyleSheet("color: green;")
+        else:
+            self.env_username_label.setText("Not set (use login form)")
+            self.env_username_label.setStyleSheet("color: gray;")
+
     def _save_settings(self):
         """Save settings to QSettings."""
         self._settings.setValue(
@@ -328,10 +334,7 @@ class SettingsDockWidget(QDockWidget):
             "Terrascope/stac_url",
             self.stac_url_edit.text().strip(),
         )
-        self._settings.setValue(
-            "Terrascope/refresh_interval",
-            self.refresh_interval_spin.value(),
-        )
+        self._settings.setValue()
         self._settings.setValue(
             "Terrascope/debug_mode",
             self.debug_cb.isChecked(),
@@ -359,9 +362,7 @@ class SettingsDockWidget(QDockWidget):
             "Terrascope/stac_url", "https://stac.terrascope.be"
         )
         self.stac_url_edit.setText(stac_url)
-        self.refresh_interval_spin.setValue(
-            int(self._settings.value("Terrascope/refresh_interval", 240))
-        )
+
         self.debug_cb.setChecked(
             self._settings.value("Terrascope/debug_mode", False, type=bool)
         )

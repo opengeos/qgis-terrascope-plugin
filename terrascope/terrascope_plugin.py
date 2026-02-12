@@ -451,7 +451,7 @@ class TerrascopePlugin:
 <li><b>COG Loading:</b> Stream Cloud Optimized GeoTIFFs directly via /vsicurl/</li>
 <li><b>Time Slider:</b> Step through multi-temporal raster layers</li>
 <li><b>Time Series:</b> Click map locations to plot pixel values over time</li>
-<li><b>Authentication:</b> OAuth2 login with automatic token refresh</li>
+<li><b>Authentication:</b> Basic authentication via login form or TERRASCOPE_USERNAME/TERRASCOPE_PASSWORD environment variables</li>
 </ul>
 
 <h3>Links:</h3>
