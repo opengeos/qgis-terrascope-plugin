@@ -7,41 +7,10 @@ integration, menu items, toolbar buttons, and dockable panels.
 
 import os
 import re
-import subprocess
-import sys
 
-from qgis.PyQt.QtCore import Qt, QSettings, QThread, QTimer, pyqtSignal
+from qgis.PyQt.QtCore import Qt, QSettings, QTimer
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolBar, QMessageBox
-
-
-class DependencyInstallWorker(QThread):
-    """Worker thread for installing missing Python dependencies."""
-
-    finished = pyqtSignal(bool, str)
-
-    def __init__(self, packages):
-        """Initialize the worker.
-
-        Args:
-            packages: List of package names to install.
-        """
-        super().__init__()
-        self.packages = packages
-
-    def run(self):
-        """Install packages using pip."""
-        try:
-            subprocess.check_call(
-                [sys.executable, "-m", "pip", "install"] + self.packages,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            self.finished.emit(True, "Dependencies installed successfully.")
-        except subprocess.CalledProcessError as e:
-            self.finished.emit(False, f"Failed to install dependencies: {e}")
-        except Exception as e:
-            self.finished.emit(False, f"Error: {e}")
 
 
 class TerrascopePlugin:
@@ -69,8 +38,8 @@ class TerrascopePlugin:
         self._auth = None
         self._stac = None
 
-        # Dependency install worker
-        self._install_worker = None
+        # Dependency state
+        self._deps_ready = False
 
     def add_action(
         self,
@@ -209,6 +178,16 @@ class TerrascopePlugin:
             parent=self.iface.mainWindow(),
         )
 
+        # Install Dependencies (menu only)
+        self.add_action(
+            ":/images/themes/default/mActionFileOpen.svg",
+            "Install Dependencies...",
+            self.show_dependency_dialog,
+            add_to_toolbar=False,
+            status_tip="Check and install required Python packages",
+            parent=self.iface.mainWindow(),
+        )
+
         # About (menu only)
         self.add_action(
             about_icon,
@@ -219,8 +198,8 @@ class TerrascopePlugin:
             parent=self.iface.mainWindow(),
         )
 
-        # Check dependencies on startup
-        self._check_dependencies()
+        # Silently set up venv sys.path if deps are already installed
+        self._setup_venv_if_ready()
 
         # Auto-login after a short delay to let QGIS finish loading
         QTimer.singleShot(1000, self._try_auto_login)
@@ -262,6 +241,9 @@ class TerrascopePlugin:
 
     def toggle_search_dock(self):
         """Toggle the Search dock widget visibility."""
+        if self._search_dock is None and not self._ensure_dependencies():
+            self.search_action.setChecked(False)
+            return
         if self._search_dock is None:
             try:
                 from .dialogs.search_dock import SearchDockWidget
@@ -306,6 +288,9 @@ class TerrascopePlugin:
 
     def toggle_time_slider_dock(self):
         """Toggle the Time Slider dock widget visibility."""
+        if self._time_slider_dock is None and not self._ensure_dependencies():
+            self.time_slider_action.setChecked(False)
+            return
         if self._time_slider_dock is None:
             try:
                 from .dialogs.time_slider_dock import TimeSliderDockWidget
@@ -348,6 +333,9 @@ class TerrascopePlugin:
 
     def toggle_time_series_dock(self):
         """Toggle the Time Series dock widget visibility."""
+        if self._time_series_dock is None and not self._ensure_dependencies():
+            self.time_series_action.setChecked(False)
+            return
         if self._time_series_dock is None:
             try:
                 from .dialogs.time_series_dock import TimeSeriesDockWidget
@@ -492,56 +480,61 @@ class TerrascopePlugin:
                 f"Failed to open update checker:\n{str(e)}",
             )
 
-    def _check_dependencies(self):
-        """Check if required Python packages are available."""
-        missing = []
-        try:
-            import requests  # noqa: F401
-        except ImportError:
-            missing.append("requests")
-        try:
-            import pystac_client  # noqa: F401
-        except ImportError:
-            missing.append("pystac-client")
+    def _setup_venv_if_ready(self):
+        """Silently set up venv sys.path if dependencies are already installed."""
+        from .venv_manager import ensure_venv_packages, get_venv_status
 
-        if missing:
-            msg = (
-                f"The following packages are required but not installed:\n"
-                f"  {', '.join(missing)}\n\n"
-                f"Would you like to install them now?"
-            )
-            reply = QMessageBox.question(
-                self.iface.mainWindow(),
-                "Terrascope - Missing Dependencies",
-                msg,
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes,
-            )
-            if reply == QMessageBox.Yes:
-                self._install_worker = DependencyInstallWorker(missing)
-                self._install_worker.finished.connect(self._on_dependencies_installed)
-                self._install_worker.start()
+        is_ready, _message, _missing_req, _missing_opt = get_venv_status()
+        if is_ready:
+            ensure_venv_packages()
+            self._deps_ready = True
 
-    def _on_dependencies_installed(self, success, message):
-        """Handle dependency installation result.
+    def _ensure_dependencies(self):
+        """Ensure dependencies are available, prompting install if needed.
 
-        Args:
-            success: Whether installation succeeded.
-            message: Result message.
+        Returns:
+            True if dependencies are ready, False otherwise.
         """
-        if success:
-            QMessageBox.information(
+        if self._deps_ready:
+            return True
+
+        from .venv_manager import ensure_venv_packages, get_venv_status
+
+        is_ready, _message, missing_req, _missing_opt = get_venv_status()
+        if is_ready:
+            ensure_venv_packages()
+            self._deps_ready = True
+            return True
+
+        if missing_req:
+            from .dialogs.dependency_dialog import DependencyDialog
+
+            dialog = DependencyDialog(self.iface.mainWindow())
+            dialog.exec_()
+
+            # Re-check after dialog closes
+            is_ready, _msg, _mr, _mo = get_venv_status()
+            if is_ready:
+                ensure_venv_packages()
+                self._deps_ready = True
+                return True
+
+        return False
+
+    def show_dependency_dialog(self):
+        """Display the dependency installation dialog."""
+        try:
+            from .dialogs.dependency_dialog import DependencyDialog
+        except ImportError as e:
+            QMessageBox.critical(
                 self.iface.mainWindow(),
-                "Terrascope",
-                f"{message}\n\nPlease restart QGIS to use the plugin.",
+                "Error",
+                f"Failed to import dependency dialog:\n{str(e)}",
             )
-        else:
-            QMessageBox.warning(
-                self.iface.mainWindow(),
-                "Terrascope",
-                f"{message}\n\nYou can install manually:\n"
-                f"  pip install requests pystac-client",
-            )
+            return
+
+        dialog = DependencyDialog(self.iface.mainWindow())
+        dialog.exec_()
 
     def _try_auto_login(self):
         """Attempt auto-login if enabled in settings."""
