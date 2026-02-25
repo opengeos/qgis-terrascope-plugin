@@ -219,8 +219,29 @@ class SettingsDockWidget(QDockWidget):
         advanced_form.addRow(self.debug_cb)
 
         advanced_layout.addLayout(advanced_form)
+
+        # Dependencies section
+        dep_group = QGroupBox("Dependencies")
+        dep_layout = QVBoxLayout(dep_group)
+
+        self.dep_status_label = QLabel("Not checked")
+        self.dep_status_label.setWordWrap(True)
+        dep_layout.addWidget(self.dep_status_label)
+
+        self.check_deps_btn = QPushButton("Check / Install Dependencies...")
+        self.check_deps_btn.clicked.connect(self._on_check_dependencies)
+        dep_layout.addWidget(self.check_deps_btn)
+
+        self.venv_path_label = QLabel("<small>~/.qgis_terrascope/venv</small>")
+        self.venv_path_label.setStyleSheet("color: gray;")
+        dep_layout.addWidget(self.venv_path_label)
+
+        advanced_layout.addWidget(dep_group)
+
         advanced_layout.addStretch()
         tabs.addTab(advanced_tab, "Advanced")
+
+        self._update_dep_status()
 
         layout.addWidget(tabs)
         self.setWidget(container)
@@ -334,7 +355,6 @@ class SettingsDockWidget(QDockWidget):
             "Terrascope/stac_url",
             self.stac_url_edit.text().strip(),
         )
-        self._settings.setValue()
         self._settings.setValue(
             "Terrascope/debug_mode",
             self.debug_cb.isChecked(),
@@ -386,3 +406,28 @@ class SettingsDockWidget(QDockWidget):
             self.username_edit.setText(saved_username)
         if saved_password:
             self.password_edit.setText(saved_password)
+
+    def _on_check_dependencies(self):
+        """Open the dependency installation dialog."""
+        from .dependency_dialog import DependencyDialog
+
+        dialog = DependencyDialog(self)
+        dialog.exec_()
+        self._update_dep_status()
+
+    def _update_dep_status(self):
+        """Update the dependency status label."""
+        from ..venv_manager import get_venv_status
+
+        is_ready, _message, missing_req, missing_opt = get_venv_status()
+        all_missing = missing_req + missing_opt
+
+        if not all_missing:
+            self.dep_status_label.setText("All dependencies installed")
+            self.dep_status_label.setStyleSheet("color: green; font-weight: bold;")
+        elif missing_req:
+            self.dep_status_label.setText(f"Missing: {', '.join(all_missing)}")
+            self.dep_status_label.setStyleSheet("color: red; font-weight: bold;")
+        else:
+            self.dep_status_label.setText(f"Optional missing: {', '.join(missing_opt)}")
+            self.dep_status_label.setStyleSheet("color: orange; font-weight: bold;")
