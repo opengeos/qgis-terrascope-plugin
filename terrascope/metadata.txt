@@ -2,7 +2,7 @@
 name=Terrascope
 qgisMinimumVersion=3.28
 description=Search and visualize Terrascope STAC API data with time slider and time series plotting.
-version=0.6.0
+version=0.7.0
 author=Qiusheng Wu
 email=giswqs@gmail.com
 
@@ -31,6 +31,8 @@ experimental=false
 deprecated=False
 
 changelog=
+    0.7.0
+        - Fix Windows venv creation and add TERRASCOPE_CACHE_DIR support (#19)
     0.6.0
         - Add a one-click dependency installer
     0.5.0

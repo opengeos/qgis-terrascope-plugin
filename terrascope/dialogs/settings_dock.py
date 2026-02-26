@@ -232,7 +232,11 @@ class SettingsDockWidget(QDockWidget):
         self.check_deps_btn.clicked.connect(self._on_check_dependencies)
         dep_layout.addWidget(self.check_deps_btn)
 
-        self.venv_path_label = QLabel("<small>~/.qgis_terrascope/venv</small>")
+        from html import escape
+
+        from ..venv_manager import VENV_DIR
+
+        self.venv_path_label = QLabel(f"<small>{escape(VENV_DIR)}</small>")
         self.venv_path_label.setStyleSheet("color: gray;")
         dep_layout.addWidget(self.venv_path_label)
 
@@ -301,6 +305,13 @@ class SettingsDockWidget(QDockWidget):
                 self._settings.setValue(
                     "Terrascope/password", self.password_edit.text().strip()
                 )
+            else:
+                self._settings.remove("Terrascope/username")
+                self._settings.remove("Terrascope/password")
+
+            self._settings.setValue(
+                "Terrascope/auto_login", self.auto_login_cb.isChecked()
+            )
         else:
             self.auth_status_label.setText(f"Login failed: {message}")
             self.auth_status_label.setStyleSheet("color: red; font-weight: bold;")
