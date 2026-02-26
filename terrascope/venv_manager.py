@@ -186,6 +186,7 @@ def create_venv(progress_callback=None):
             text=True,
             timeout=120,
             env=env,
+            **_subprocess_kwargs(),
         )
         if result.returncode != 0:
             return False, f"Failed to create venv: {result.stderr.strip()}"
@@ -220,6 +221,7 @@ def create_venv(progress_callback=None):
             text=True,
             timeout=120,
             env=env,
+            **_subprocess_kwargs(),
         )
     except Exception:
         pass  # pip upgrade failure is non-fatal
@@ -314,6 +316,7 @@ def _install_single_package(python, package, env):
                 text=True,
                 timeout=120,
                 env=env,
+                **_subprocess_kwargs(),
             )
             if result.returncode == 0:
                 return True, ""
@@ -336,6 +339,7 @@ def _install_single_package(python, package, env):
                         text=True,
                         timeout=120,
                         env=env,
+                        **_subprocess_kwargs(),
                     )
                     if ssl_result.returncode == 0:
                         return True, ""
@@ -437,6 +441,20 @@ def _get_clean_env():
     for var in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV"):
         env.pop(var, None)
     return env
+
+
+def _subprocess_kwargs():
+    """Get platform-specific kwargs for subprocess calls.
+
+    On Windows, suppresses the console window that would otherwise pop up
+    for each subprocess invocation.
+
+    Returns:
+        Dict of keyword arguments to pass to subprocess.run().
+    """
+    if platform.system() == "Windows":
+        return {"creationflags": subprocess.CREATE_NO_WINDOW}
+    return {}
 
 
 def _find_python_executable():
