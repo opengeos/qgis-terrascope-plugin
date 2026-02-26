@@ -305,6 +305,13 @@ class SettingsDockWidget(QDockWidget):
                 self._settings.setValue(
                     "Terrascope/password", self.password_edit.text().strip()
                 )
+            else:
+                self._settings.remove("Terrascope/username")
+                self._settings.remove("Terrascope/password")
+
+            self._settings.setValue(
+                "Terrascope/auto_login", self.auto_login_cb.isChecked()
+            )
         else:
             self.auth_status_label.setText(f"Login failed: {message}")
             self.auth_status_label.setStyleSheet("color: red; font-weight: bold;")
