@@ -16,9 +16,11 @@ import shutil
 import subprocess
 import sys
 
-CACHE_DIR = os.environ.get(
-    "TERRASCOPE_CACHE_DIR", os.path.expanduser("~/.qgis_terrascope")
-)
+_raw_cache_dir = os.environ.get("TERRASCOPE_CACHE_DIR")
+if _raw_cache_dir is None:
+    CACHE_DIR = os.path.expanduser("~/.qgis_terrascope")
+else:
+    CACHE_DIR = os.path.expanduser(os.path.expandvars(_raw_cache_dir))
 VENV_DIR = os.path.join(CACHE_DIR, "venv")
 
 REQUIRED_PACKAGES = [
@@ -496,11 +498,26 @@ def _find_python_executable():
     parent = os.path.dirname(exe_dir)
     apps_dir = os.path.join(parent, "apps")
     if os.path.isdir(apps_dir):
-        for entry in sorted(os.listdir(apps_dir), reverse=True):
-            if entry.lower().startswith("python"):
-                candidate = os.path.join(apps_dir, entry, "python.exe")
-                if os.path.isfile(candidate):
-                    return candidate
+        best_candidate = None
+        best_version_num = -1
+        for entry in os.listdir(apps_dir):
+            lower_entry = entry.lower()
+            if not lower_entry.startswith("python"):
+                continue
+            suffix = lower_entry[len("python") :]
+            digits = "".join(ch for ch in suffix if ch.isdigit())
+            if not digits:
+                continue
+            try:
+                version_num = int(digits)
+            except ValueError:
+                continue
+            candidate = os.path.join(apps_dir, entry, "python.exe")
+            if os.path.isfile(candidate) and version_num > best_version_num:
+                best_version_num = version_num
+                best_candidate = candidate
+        if best_candidate:
+            return best_candidate
 
     # Strategy 5: Use shutil.which as last resort
     which_python = shutil.which("python")

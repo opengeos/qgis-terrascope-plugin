@@ -232,9 +232,11 @@ class SettingsDockWidget(QDockWidget):
         self.check_deps_btn.clicked.connect(self._on_check_dependencies)
         dep_layout.addWidget(self.check_deps_btn)
 
+        from html import escape
+
         from ..venv_manager import VENV_DIR
 
-        self.venv_path_label = QLabel(f"<small>{VENV_DIR}</small>")
+        self.venv_path_label = QLabel(f"<small>{escape(VENV_DIR)}</small>")
         self.venv_path_label.setStyleSheet("color: gray;")
         dep_layout.addWidget(self.venv_path_label)
 

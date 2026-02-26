@@ -169,9 +169,13 @@ class DependencyDialog(QDialog):
         layout.addLayout(btn_layout)
 
         # Info label
+        from html import escape
+
         from ..venv_manager import VENV_DIR
 
-        info_label = QLabel(f"<small>Packages are installed in {VENV_DIR}</small>")
+        info_label = QLabel(
+            f"<small>Packages are installed in {escape(VENV_DIR)}</small>"
+        )
         info_label.setAlignment(Qt.AlignCenter)
         info_label.setStyleSheet("color: gray;")
         layout.addWidget(info_label)
