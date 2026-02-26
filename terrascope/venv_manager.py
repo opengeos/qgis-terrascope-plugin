@@ -504,7 +504,7 @@ def _find_python_executable():
             lower_entry = entry.lower()
             if not lower_entry.startswith("python"):
                 continue
-            suffix = lower_entry[len("python") :]
+            suffix = lower_entry.removeprefix("python")
             digits = "".join(ch for ch in suffix if ch.isdigit())
             if not digits:
                 continue
