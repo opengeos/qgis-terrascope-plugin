@@ -1,8 +1,11 @@
 """
 Virtual Environment Manager for Terrascope Plugin
 
-Manages an isolated virtual environment at ~/.qgis_terrascope/venv/ for plugin
-dependencies, keeping them separate from QGIS's built-in Python environment.
+Manages an isolated virtual environment for plugin dependencies, keeping them
+separate from QGIS's built-in Python environment.
+
+The default location is ~/.qgis_terrascope/venv/. Override by setting the
+TERRASCOPE_CACHE_DIR environment variable.
 """
 
 import importlib
@@ -13,7 +16,9 @@ import shutil
 import subprocess
 import sys
 
-CACHE_DIR = os.path.expanduser("~/.qgis_terrascope")
+CACHE_DIR = os.environ.get(
+    "TERRASCOPE_CACHE_DIR", os.path.expanduser("~/.qgis_terrascope")
+)
 VENV_DIR = os.path.join(CACHE_DIR, "venv")
 
 REQUIRED_PACKAGES = [
@@ -32,7 +37,13 @@ def get_venv_python():
         Path to the Python executable inside the venv.
     """
     if platform.system() == "Windows":
-        return os.path.join(VENV_DIR, "Scripts", "python.exe")
+        primary = os.path.join(VENV_DIR, "Scripts", "python.exe")
+        if os.path.isfile(primary):
+            return primary
+        fallback = os.path.join(VENV_DIR, "Scripts", "python3.exe")
+        if os.path.isfile(fallback):
+            return fallback
+        return primary  # Return expected path even if missing (for error messages)
     path = os.path.join(VENV_DIR, "bin", "python3")
     if os.path.isfile(path):
         return path
@@ -166,10 +177,11 @@ def create_venv(progress_callback=None):
 
     os.makedirs(CACHE_DIR, exist_ok=True)
 
+    python_exe = _find_python_executable()
     env = _get_clean_env()
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "venv", VENV_DIR],
+            [python_exe, "-m", "venv", VENV_DIR],
             capture_output=True,
             text=True,
             timeout=120,
@@ -183,7 +195,11 @@ def create_venv(progress_callback=None):
         return False, f"Error creating virtual environment: {e}"
 
     if not venv_exists():
-        return False, "Virtual environment was created but Python executable not found"
+        return (
+            False,
+            "Virtual environment was created but Python executable not found. "
+            f"Python used: {python_exe}",
+        )
 
     # Upgrade pip in the venv
     if progress_callback:
@@ -398,7 +414,7 @@ def _classify_error(stderr, package):
     if "No module named pip" in stderr:
         return (
             "pip is not available in the virtual environment. "
-            "Try removing ~/.qgis_terrascope/venv/ and reinstalling."
+            f"Try removing {VENV_DIR} and reinstalling."
         )
     # Return last few relevant lines of stderr
     lines = stderr.strip().split("\n")
@@ -421,3 +437,57 @@ def _get_clean_env():
     for var in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV"):
         env.pop(var, None)
     return env
+
+
+def _find_python_executable():
+    """Find a working Python executable for venv creation.
+
+    On QGIS Windows, sys.executable may point to qgis-bin.exe rather than
+    a Python interpreter. This function searches for the actual Python
+    executable using multiple strategies.
+
+    Returns:
+        Path to a Python executable, or sys.executable as fallback.
+    """
+    if platform.system() != "Windows":
+        return sys.executable
+
+    # Strategy 1: Check if sys.executable is already Python
+    exe_name = os.path.basename(sys.executable).lower()
+    if exe_name in ("python.exe", "python3.exe"):
+        return sys.executable
+
+    # Strategy 2: Use sys._base_prefix to find the Python installation.
+    # On QGIS Windows, sys._base_prefix typically points to
+    # C:\Program Files\QGIS 3.x\apps\Python3x\
+    base_prefix = getattr(sys, "_base_prefix", None) or sys.prefix
+    python_in_prefix = os.path.join(base_prefix, "python.exe")
+    if os.path.isfile(python_in_prefix):
+        return python_in_prefix
+
+    # Strategy 3: Look for python.exe next to sys.executable
+    exe_dir = os.path.dirname(sys.executable)
+    for name in ("python.exe", "python3.exe"):
+        candidate = os.path.join(exe_dir, name)
+        if os.path.isfile(candidate):
+            return candidate
+
+    # Strategy 4: Walk up from sys.executable to find apps/Python3x/python.exe
+    # Typical QGIS layout: .../QGIS 3.x/bin/qgis-bin.exe
+    #                       .../QGIS 3.x/apps/Python3x/python.exe
+    parent = os.path.dirname(exe_dir)
+    apps_dir = os.path.join(parent, "apps")
+    if os.path.isdir(apps_dir):
+        for entry in sorted(os.listdir(apps_dir), reverse=True):
+            if entry.lower().startswith("python"):
+                candidate = os.path.join(apps_dir, entry, "python.exe")
+                if os.path.isfile(candidate):
+                    return candidate
+
+    # Strategy 5: Use shutil.which as last resort
+    which_python = shutil.which("python")
+    if which_python:
+        return which_python
+
+    # Fallback: return sys.executable (may fail, but preserves current behavior)
+    return sys.executable

@@ -2,7 +2,7 @@
 Dependency Installation Dialog for Terrascope Plugin
 
 Provides a dialog to check and install plugin dependencies into an isolated
-virtual environment at ~/.qgis_terrascope/venv/.
+virtual environment managed by venv_manager.
 """
 
 from qgis.PyQt.QtCore import Qt, QThread, pyqtSignal
@@ -169,9 +169,9 @@ class DependencyDialog(QDialog):
         layout.addLayout(btn_layout)
 
         # Info label
-        info_label = QLabel(
-            "<small>Packages are installed in ~/.qgis_terrascope/venv</small>"
-        )
+        from ..venv_manager import VENV_DIR
+
+        info_label = QLabel(f"<small>Packages are installed in {VENV_DIR}</small>")
         info_label.setAlignment(Qt.AlignCenter)
         info_label.setStyleSheet("color: gray;")
         layout.addWidget(info_label)
