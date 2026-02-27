@@ -166,7 +166,11 @@ def ensure_venv_packages():
 
 
 def create_venv(progress_callback=None):
-    """Create the virtual environment.
+    """Create the virtual environment using uv (preferred) or stdlib venv.
+
+    When uv is available, uses ``uv venv`` which is faster and does not
+    require pip inside the venv.  Falls back to ``python -m venv`` when
+    uv is not available.
 
     Args:
         progress_callback: Optional callable(str) for status messages.
@@ -174,6 +178,8 @@ def create_venv(progress_callback=None):
     Returns:
         Tuple of (success, message).
     """
+    from .uv_manager import uv_exists, get_uv_path
+
     if progress_callback:
         progress_callback("Creating virtual environment...")
 
@@ -181,9 +187,17 @@ def create_venv(progress_callback=None):
 
     python_exe = _find_python_executable()
     env = _get_clean_env()
+    use_uv = uv_exists()
+
     try:
+        if use_uv:
+            uv_path = get_uv_path()
+            cmd = [uv_path, "venv", "--python", python_exe, VENV_DIR]
+        else:
+            cmd = [python_exe, "-m", "venv", VENV_DIR]
+
         result = subprocess.run(
-            [python_exe, "-m", "venv", VENV_DIR],
+            cmd,
             capture_output=True,
             text=True,
             timeout=120,
@@ -191,7 +205,29 @@ def create_venv(progress_callback=None):
             **_subprocess_kwargs(),
         )
         if result.returncode != 0:
-            return False, f"Failed to create venv: {result.stderr.strip()}"
+            if use_uv:
+                # uv venv failed; fall back to stdlib venv
+                if progress_callback:
+                    progress_callback(
+                        "uv venv failed, falling back to python -m venv..."
+                    )
+                from .uv_manager import remove_uv
+
+                remove_uv()
+                use_uv = False
+                cmd = [python_exe, "-m", "venv", VENV_DIR]
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    env=env,
+                    **_subprocess_kwargs(),
+                )
+                if result.returncode != 0:
+                    return False, f"Failed to create venv: {result.stderr.strip()}"
+            else:
+                return False, f"Failed to create venv: {result.stderr.strip()}"
     except subprocess.TimeoutExpired:
         return False, "Timed out creating virtual environment"
     except Exception as e:
@@ -204,35 +240,39 @@ def create_venv(progress_callback=None):
             f"Python used: {python_exe}",
         )
 
-    # Upgrade pip in the venv
-    if progress_callback:
-        progress_callback("Upgrading pip...")
+    # When using stdlib venv, upgrade pip
+    if not use_uv:
+        if progress_callback:
+            progress_callback("Upgrading pip...")
 
-    try:
-        subprocess.run(
-            [
-                get_venv_python(),
-                "-m",
-                "pip",
-                "install",
-                "--upgrade",
-                "pip",
-                "--disable-pip-version-check",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=env,
-            **_subprocess_kwargs(),
-        )
-    except Exception:
-        pass  # pip upgrade failure is non-fatal
+        try:
+            subprocess.run(
+                [
+                    get_venv_python(),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--upgrade",
+                    "pip",
+                    "--disable-pip-version-check",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
+                **_subprocess_kwargs(),
+            )
+        except Exception:
+            pass  # pip upgrade failure is non-fatal
 
     return True, "Virtual environment created successfully"
 
 
 def install_packages(packages, progress_callback=None, cancel_check=None):
     """Install packages into the virtual environment.
+
+    Uses uv when available for significantly faster installation,
+    falling back to pip otherwise.
 
     Args:
         packages: List of pip package names to install.
@@ -252,14 +292,25 @@ def install_packages(packages, progress_callback=None, cancel_check=None):
     python = get_venv_python()
     failed = []
 
+    from .uv_manager import uv_exists, get_uv_path
+
+    use_uv = uv_exists()
+    uv_path = get_uv_path() if use_uv else None
+
     for i, package in enumerate(packages, 1):
         if cancel_check and cancel_check():
             return False, "Installation cancelled by user"
 
+        installer = "uv" if use_uv else "pip"
         if progress_callback:
-            progress_callback(f"Installing {package}... ({i}/{len(packages)})")
+            progress_callback(
+                f"Installing {package} ({installer})... ({i}/{len(packages)})"
+            )
 
-        success, error = _install_single_package(python, package, env)
+        if use_uv:
+            success, error = _install_single_package_uv(uv_path, python, package, env)
+        else:
+            success, error = _install_single_package(python, package, env)
         if not success:
             failed.append((package, error))
 
@@ -337,6 +388,71 @@ def _install_single_package(python, package, env):
                     ]
                     ssl_result = subprocess.run(
                         cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        env=env,
+                        **_subprocess_kwargs(),
+                    )
+                    if ssl_result.returncode == 0:
+                        return True, ""
+                continue
+
+            return False, _classify_error(stderr, package)
+
+        except subprocess.TimeoutExpired:
+            if attempt < max_retries:
+                continue
+            return False, f"Installation of {package} timed out"
+        except Exception as e:
+            return False, str(e)
+
+    return False, f"Failed to install {package} after {max_retries + 1} attempts"
+
+
+def _install_single_package_uv(uv_path, python, package, env):
+    """Install a single package using uv with retry logic.
+
+    Args:
+        uv_path: Path to the uv binary.
+        python: Path to the venv Python executable.
+        package: Pip package name to install.
+        env: Clean environment dict for subprocess.
+
+    Returns:
+        Tuple of (success, error_message).
+    """
+    max_retries = 2
+    base_cmd = [uv_path, "pip", "install", "--python", python]
+
+    for attempt in range(max_retries + 1):
+        cmd = list(base_cmd) + [package]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
+                **_subprocess_kwargs(),
+            )
+            if result.returncode == 0:
+                return True, ""
+
+            stderr = result.stderr or ""
+            if attempt < max_retries and _is_retryable(stderr):
+                # Try with insecure hosts for SSL errors
+                if _is_ssl_error(stderr):
+                    ssl_cmd = list(base_cmd) + [
+                        "--allow-insecure-host",
+                        "pypi.org",
+                        "--allow-insecure-host",
+                        "files.pythonhosted.org",
+                        package,
+                    ]
+                    ssl_result = subprocess.run(
+                        ssl_cmd,
                         capture_output=True,
                         text=True,
                         timeout=120,
