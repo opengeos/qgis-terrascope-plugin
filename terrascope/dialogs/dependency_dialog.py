@@ -41,7 +41,10 @@ class DependencyInstallWorker(QThread):
         self._cancelled = True
 
     def run(self):
-        """Create venv if needed and install packages."""
+        """Download uv, create venv if needed, and install packages."""
+        import time
+
+        from ..uv_manager import download_uv, uv_exists
         from ..venv_manager import (
             create_venv,
             ensure_venv_packages,
@@ -50,6 +53,23 @@ class DependencyInstallWorker(QThread):
         )
 
         try:
+            start_time = time.time()
+
+            # Download uv if needed (fast package installer)
+            if not uv_exists():
+                self.progress.emit("Downloading uv package installer...")
+                success, msg = download_uv(
+                    progress_callback=lambda msg: self.progress.emit(msg),
+                    cancel_check=lambda: self._cancelled,
+                )
+                if not success:
+                    # Non-fatal: fall back to pip
+                    self.progress.emit("uv unavailable, using pip instead.")
+
+            if self._cancelled:
+                self.finished.emit(False, "Installation cancelled by user")
+                return
+
             # Create venv if it doesn't exist
             if not venv_exists():
                 self.progress.emit("Creating virtual environment...")
@@ -73,6 +93,13 @@ class DependencyInstallWorker(QThread):
 
             if success:
                 ensure_venv_packages()
+                elapsed = time.time() - start_time
+                if elapsed >= 60:
+                    minutes, seconds = divmod(int(elapsed), 60)
+                    elapsed_str = f"{minutes}:{seconds:02d}"
+                else:
+                    elapsed_str = f"{elapsed:.1f}s"
+                message = f"All packages installed successfully in {elapsed_str}"
 
             self.finished.emit(success, message)
 
