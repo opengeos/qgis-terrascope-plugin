@@ -93,8 +93,7 @@ def get_uv_download_url() -> str:
     platform_str, ext = _get_uv_platform_info()
     filename = f"uv-{platform_str}{ext}"
     return (
-        f"https://github.com/astral-sh/uv/releases/download/"
-        f"{UV_VERSION}/{filename}"
+        f"https://github.com/astral-sh/uv/releases/download/" f"{UV_VERSION}/{filename}"
     )
 
 
@@ -110,9 +109,7 @@ def _safe_extract_tar(tar, dest_dir):
     for member in tar.getmembers():
         member_path = os.path.realpath(os.path.join(dest_dir, member.name))
         if not member_path.startswith(dest_dir + os.sep) and member_path != dest_dir:
-            raise ValueError(
-                f"Attempted path traversal in tar archive: {member.name}"
-            )
+            raise ValueError(f"Attempted path traversal in tar archive: {member.name}")
         if use_filter:
             tar.extract(member, dest_dir, filter="data")
         else:
@@ -130,9 +127,7 @@ def _safe_extract_zip(zip_file, dest_dir):
     for member in zip_file.namelist():
         member_path = os.path.realpath(os.path.join(dest_dir, member))
         if not member_path.startswith(dest_dir + os.sep) and member_path != dest_dir:
-            raise ValueError(
-                f"Attempted path traversal in zip archive: {member}"
-            )
+            raise ValueError(f"Attempted path traversal in zip archive: {member}")
         zip_file.extract(member, dest_dir)
 
 
@@ -194,8 +189,7 @@ def download_uv(
             error_msg = request.errorMessage()
             if "404" in error_msg or "Not Found" in error_msg:
                 error_msg = (
-                    f"uv {UV_VERSION} not available for this platform. "
-                    f"URL: {url}"
+                    f"uv {UV_VERSION} not available for this platform. " f"URL: {url}"
                 )
             else:
                 error_msg = f"Download failed: {error_msg}"
