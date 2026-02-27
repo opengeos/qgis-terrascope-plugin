@@ -207,11 +207,10 @@ def create_venv(progress_callback=None):
         if result.returncode != 0:
             if use_uv:
                 # uv venv failed; fall back to stdlib venv
-                _log(
-                    f"uv venv failed ({result.stderr.strip()}), "
-                    "falling back to python -m venv",
-                    Qgis.Warning,
-                )
+                if progress_callback:
+                    progress_callback(
+                        "uv venv failed, falling back to python -m venv..."
+                    )
                 from .uv_manager import remove_uv
 
                 remove_uv()

@@ -260,7 +260,7 @@ def download_uv(
         success, verify_msg = verify_uv()
 
         if success:
-            _log("uv installed successfully", Qgis.Success)
+            _log("uv installed successfully", Qgis.Info)
             return True, f"uv {UV_VERSION} installed successfully"
         else:
             # Verification failed; clean up partially installed uv so
@@ -315,7 +315,7 @@ def verify_uv() -> Tuple[bool, str]:
 
         if result.returncode == 0:
             version_output = result.stdout.strip()
-            _log(f"Verified uv: {version_output}", Qgis.Success)
+            _log(f"Verified uv: {version_output}", Qgis.Info)
             return True, version_output
         else:
             error = result.stderr or "Unknown error"
@@ -339,7 +339,7 @@ def remove_uv() -> Tuple[bool, str]:
 
     try:
         shutil.rmtree(UV_DIR)
-        _log("Removed uv installation", Qgis.Success)
+        _log("Removed uv installation", Qgis.Info)
         return True, "uv removed"
     except Exception as e:
         error_msg = f"Failed to remove uv: {str(e)}"
