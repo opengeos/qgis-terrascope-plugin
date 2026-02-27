@@ -205,7 +205,30 @@ def create_venv(progress_callback=None):
             **_subprocess_kwargs(),
         )
         if result.returncode != 0:
-            return False, f"Failed to create venv: {result.stderr.strip()}"
+            if use_uv:
+                # uv venv failed; fall back to stdlib venv
+                _log(
+                    f"uv venv failed ({result.stderr.strip()}), "
+                    "falling back to python -m venv",
+                    Qgis.Warning,
+                )
+                from .uv_manager import remove_uv
+
+                remove_uv()
+                use_uv = False
+                cmd = [python_exe, "-m", "venv", VENV_DIR]
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    env=env,
+                    **_subprocess_kwargs(),
+                )
+                if result.returncode != 0:
+                    return False, f"Failed to create venv: {result.stderr.strip()}"
+            else:
+                return False, f"Failed to create venv: {result.stderr.strip()}"
     except subprocess.TimeoutExpired:
         return False, "Timed out creating virtual environment"
     except Exception as e:

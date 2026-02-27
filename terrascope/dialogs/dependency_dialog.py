@@ -63,7 +63,12 @@ class DependencyInstallWorker(QThread):
                     cancel_check=lambda: self._cancelled,
                 )
                 if not success:
-                    # Non-fatal: fall back to pip
+                    # Non-fatal: fall back to pip.  Ensure any partial uv
+                    # install is removed so uv_exists() returns False and
+                    # downstream steps use pip instead.
+                    from ..uv_manager import remove_uv
+
+                    remove_uv()
                     self.progress.emit("uv unavailable, using pip instead.")
 
             if self._cancelled:

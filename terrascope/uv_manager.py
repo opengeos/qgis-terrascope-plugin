@@ -110,6 +110,11 @@ def _safe_extract_tar(tar, dest_dir):
         member_path = os.path.realpath(os.path.join(dest_dir, member.name))
         if not member_path.startswith(dest_dir + os.sep) and member_path != dest_dir:
             raise ValueError(f"Attempted path traversal in tar archive: {member.name}")
+        # On Python <3.12 the ``filter="data"`` safety mechanism is not
+        # available, so explicitly reject symlinks and hardlinks that
+        # could escape the destination directory.
+        if not use_filter and (member.issym() or member.islnk()):
+            raise ValueError(f"Refusing symlink/hardlink in tar archive: {member.name}")
         if use_filter:
             tar.extract(member, dest_dir, filter="data")
         else:
@@ -258,11 +263,16 @@ def download_uv(
             _log("uv installed successfully", Qgis.Success)
             return True, f"uv {UV_VERSION} installed successfully"
         else:
+            # Verification failed; clean up partially installed uv so
+            # uv_exists() won't return True for a broken binary.
+            shutil.rmtree(UV_DIR, ignore_errors=True)
             return False, f"Verification failed: {verify_msg}"
 
     except InterruptedError:
+        shutil.rmtree(UV_DIR, ignore_errors=True)
         return False, "Download cancelled"
     except Exception as e:
+        shutil.rmtree(UV_DIR, ignore_errors=True)
         error_msg = f"uv installation failed: {str(e)}"
         _log(error_msg, Qgis.Critical)
         return False, error_msg
