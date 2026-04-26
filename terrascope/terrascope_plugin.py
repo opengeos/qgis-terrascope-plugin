@@ -224,7 +224,7 @@ class TerrascopePlugin:
             try:
                 self._auth.logout()
             except Exception:
-                pass
+                pass  # nosec B110 - logout failures during plugin unload are not actionable
             self._auth = None
 
         # Remove actions from menu
@@ -259,7 +259,9 @@ class TerrascopePlugin:
                 self._search_dock.visibilityChanged.connect(
                     self._on_search_visibility_changed
                 )
-                self.iface.addDockWidget(Qt.RightDockWidgetArea, self._search_dock)
+                self.iface.addDockWidget(
+                    Qt.DockWidgetArea.RightDockWidgetArea, self._search_dock
+                )
                 self._search_dock.show()
                 self._search_dock.raise_()
                 return
@@ -303,7 +305,7 @@ class TerrascopePlugin:
                     self._on_time_slider_visibility_changed
                 )
                 self.iface.addDockWidget(
-                    Qt.BottomDockWidgetArea, self._time_slider_dock
+                    Qt.DockWidgetArea.BottomDockWidgetArea, self._time_slider_dock
                 )
                 self._time_slider_dock.show()
                 self._time_slider_dock.raise_()
@@ -347,7 +349,9 @@ class TerrascopePlugin:
                 self._time_series_dock.visibilityChanged.connect(
                     self._on_time_series_visibility_changed
                 )
-                self.iface.addDockWidget(Qt.RightDockWidgetArea, self._time_series_dock)
+                self.iface.addDockWidget(
+                    Qt.DockWidgetArea.RightDockWidgetArea, self._time_series_dock
+                )
                 self._time_series_dock.show()
                 self._time_series_dock.raise_()
                 return
@@ -387,7 +391,9 @@ class TerrascopePlugin:
                 self._settings_dock.visibilityChanged.connect(
                     self._on_settings_visibility_changed
                 )
-                self.iface.addDockWidget(Qt.RightDockWidgetArea, self._settings_dock)
+                self.iface.addDockWidget(
+                    Qt.DockWidgetArea.RightDockWidgetArea, self._settings_dock
+                )
                 self._settings_dock.show()
                 self._settings_dock.raise_()
                 return
@@ -425,7 +431,7 @@ class TerrascopePlugin:
                 if version_match:
                     version = version_match.group(1).strip()
         except Exception:
-            pass
+            pass  # nosec B110 - About box falls back to default version string
 
         about_text = f"""
 <h2>Terrascope Plugin for QGIS</h2>
@@ -472,7 +478,7 @@ class TerrascopePlugin:
 
         try:
             dialog = UpdateCheckerDialog(self.plugin_dir, self.iface.mainWindow())
-            dialog.exec_()
+            dialog.exec()
         except Exception as e:
             QMessageBox.critical(
                 self.iface.mainWindow(),
@@ -510,7 +516,7 @@ class TerrascopePlugin:
             from .dialogs.dependency_dialog import DependencyDialog
 
             dialog = DependencyDialog(self.iface.mainWindow())
-            dialog.exec_()
+            dialog.exec()
 
             # Re-check after dialog closes
             is_ready, _msg, _mr, _mo = get_venv_status()
@@ -534,7 +540,7 @@ class TerrascopePlugin:
             return
 
         dialog = DependencyDialog(self.iface.mainWindow())
-        dialog.exec_()
+        dialog.exec()
 
     def _try_auto_login(self):
         """Attempt auto-login if enabled in settings."""

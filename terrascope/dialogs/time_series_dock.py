@@ -61,7 +61,9 @@ class TimeSeriesDockWidget(QDockWidget):
         self._last_data = None
         self._last_point = None
 
-        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
 
         self._setup_ui()
 
@@ -113,7 +115,7 @@ class TimeSeriesDockWidget(QDockWidget):
                 "matplotlib is required for plotting.\n"
                 "Install with: pip install matplotlib"
             )
-            no_mpl_label.setAlignment(Qt.AlignCenter)
+            no_mpl_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             no_mpl_label.setStyleSheet("color: red;")
             layout.addWidget(no_mpl_label)
 
@@ -195,7 +197,7 @@ class TimeSeriesDockWidget(QDockWidget):
         self.lon_label.setText(f"{display_point.x():.4f}")
 
         # Show wait cursor while extracting pixel values
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
             self._extract_and_plot(point, display_point, canvas_crs, time_steps)
         finally:

@@ -68,7 +68,9 @@ class SettingsDockWidget(QDockWidget):
         self._get_auth = get_auth
         self._workers = []
 
-        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
 
         self._settings = QSettings()
         self._setup_ui()
@@ -124,7 +126,7 @@ class SettingsDockWidget(QDockWidget):
         auth_form.addRow("Username:", self.username_edit)
 
         self.password_edit = QLineEdit()
-        self.password_edit.setEchoMode(QLineEdit.Password)
+        self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_edit.setPlaceholderText("Terrascope password")
         auth_form.addRow("Password:", self.password_edit)
 
@@ -151,7 +153,7 @@ class SettingsDockWidget(QDockWidget):
         # Status
         self.auth_status_label = QLabel("Not authenticated")
         self.auth_status_label.setStyleSheet("color: gray; font-weight: bold;")
-        self.auth_status_label.setAlignment(Qt.AlignCenter)
+        self.auth_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         auth_layout.addWidget(self.auth_status_label)
 
         auth_layout.addStretch()
@@ -423,7 +425,7 @@ class SettingsDockWidget(QDockWidget):
         from .dependency_dialog import DependencyDialog
 
         dialog = DependencyDialog(self)
-        dialog.exec_()
+        dialog.exec()
         self._update_dep_status()
 
     def _update_dep_status(self):

@@ -229,7 +229,9 @@ class SearchDockWidget(QDockWidget):
         self._footprint_layer = None
         self._updating_selection = False
 
-        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
 
         self._setup_ui()
 
@@ -273,7 +275,7 @@ class SearchDockWidget(QDockWidget):
                 self._on_layer_will_be_removed
             )
         except Exception:
-            pass
+            pass  # nosec B110 - signal may already be disconnected on close
         super().closeEvent(event)
 
     def _setup_ui(self):
@@ -288,7 +290,9 @@ class SearchDockWidget(QDockWidget):
         coll_row = QHBoxLayout()
         self.collection_combo = QComboBox()
         self.collection_combo.setEditable(True)
-        self.collection_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.collection_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self.collection_combo.currentTextChanged.connect(self._on_collection_changed)
         coll_row.addWidget(self.collection_combo, 1)
 
@@ -466,7 +470,7 @@ class SearchDockWidget(QDockWidget):
         layout.addWidget(self.progress_bar)
 
         self.status_label = QLabel("")
-        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setVisible(False)
         layout.addWidget(self.status_label)
 
@@ -475,11 +479,13 @@ class SearchDockWidget(QDockWidget):
         self.results_table.setColumnCount(4)
         self.results_table.setHorizontalHeaderLabels(["Date", "ID", "Cloud %", ""])
         header = self.results_table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.results_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.results_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.results_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.results_table.setSortingEnabled(True)
         self.results_table.horizontalHeader().setSectionsClickable(True)
         self.results_table.itemSelectionChanged.connect(
@@ -838,9 +844,9 @@ class SearchDockWidget(QDockWidget):
                 self,
                 "Terrascope",
                 "Bounding box is all zeros. Search without spatial filter?",
-                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
-            if reply == QMessageBox.No:
+            if reply == QMessageBox.StandardButton.No:
                 return
             bbox = None
 
@@ -904,12 +910,14 @@ class SearchDockWidget(QDockWidget):
 
         for row, item in enumerate(items):
             date_item = QTableWidgetItem(item["date_str"])
-            date_item.setData(Qt.UserRole, row)
+            date_item.setData(Qt.ItemDataRole.UserRole, row)
             self.results_table.setItem(row, 0, date_item)
             self.results_table.setItem(row, 1, QTableWidgetItem(item["id"]))
             cloud = item.get("cloud_cover")
             cloud_item = QTableWidgetItem()
-            cloud_item.setData(Qt.DisplayRole, cloud if cloud is not None else "N/A")
+            cloud_item.setData(
+                Qt.ItemDataRole.DisplayRole, cloud if cloud is not None else "N/A"
+            )
             self.results_table.setItem(row, 2, cloud_item)
 
             # Link button
@@ -979,7 +987,7 @@ class SearchDockWidget(QDockWidget):
                 "Terrascope",
                 "You are not logged in. COG layers require authentication.\n\n"
                 "Please login via the Settings panel first.",
-                QMessageBox.Ok,
+                QMessageBox.StandardButton.Ok,
             )
             return False
         return True
@@ -1002,7 +1010,7 @@ class SearchDockWidget(QDockWidget):
         for visual_row in sorted(selected_visual_rows):
             date_item = self.results_table.item(visual_row, 0)
             if date_item is not None:
-                data_indices.append(date_item.data(Qt.UserRole))
+                data_indices.append(date_item.data(Qt.ItemDataRole.UserRole))
 
         if not data_indices:
             return
@@ -1143,7 +1151,7 @@ class SearchDockWidget(QDockWidget):
         for visual_row in sorted(selected_visual_rows):
             date_item = self.results_table.item(visual_row, 0)
             if date_item is not None:
-                data_indices.append(date_item.data(Qt.UserRole))
+                data_indices.append(date_item.data(Qt.ItemDataRole.UserRole))
 
         if not data_indices:
             return
@@ -1273,13 +1281,13 @@ class SearchDockWidget(QDockWidget):
                         self._on_footprint_selection_changed
                     )
                 except Exception:
-                    pass
+                    pass  # nosec B110 - signal may already be disconnected
                 try:
                     QgsProject.instance().layerWillBeRemoved.disconnect(
                         self._on_layer_will_be_removed
                     )
                 except Exception:
-                    pass
+                    pass  # nosec B110 - signal may already be disconnected
                 QgsProject.instance().removeMapLayer(self._footprint_layer.id())
             self._footprint_layer = None
 
@@ -1310,13 +1318,13 @@ class SearchDockWidget(QDockWidget):
                     self._on_footprint_selection_changed
                 )
             except Exception:
-                pass
+                pass  # nosec B110 - signal may already be disconnected
             try:
                 QgsProject.instance().layerWillBeRemoved.disconnect(
                     self._on_layer_will_be_removed
                 )
             except Exception:
-                pass
+                pass  # nosec B110 - signal may already be disconnected
             self._footprint_layer = None
 
     def _on_table_selection_changed(self):
@@ -1331,7 +1339,7 @@ class SearchDockWidget(QDockWidget):
             for item in self.results_table.selectedItems():
                 date_item = self.results_table.item(item.row(), 0)
                 if date_item is not None:
-                    idx = date_item.data(Qt.UserRole)
+                    idx = date_item.data(Qt.ItemDataRole.UserRole)
                     if idx is not None:
                         selected_data_indices.add(idx)
 
@@ -1386,7 +1394,7 @@ class SearchDockWidget(QDockWidget):
             for row in range(self.results_table.rowCount()):
                 date_item = self.results_table.item(row, 0)
                 if date_item is not None:
-                    idx = date_item.data(Qt.UserRole)
+                    idx = date_item.data(Qt.ItemDataRole.UserRole)
                     if idx in selected_data_indices:
                         self.results_table.selectRow(row)
         finally:

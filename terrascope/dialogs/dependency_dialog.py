@@ -142,7 +142,7 @@ class DependencyDialog(QDialog):
         header_font.setPointSize(13)
         header_font.setBold(True)
         header.setFont(header_font)
-        header.setAlignment(Qt.AlignCenter)
+        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
 
         # Required packages group
@@ -178,7 +178,7 @@ class DependencyDialog(QDialog):
         # Status label
         self.status_label = QLabel("")
         self.status_label.setWordWrap(True)
-        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setVisible(False)
         layout.addWidget(self.status_label)
 
@@ -208,7 +208,7 @@ class DependencyDialog(QDialog):
         info_label = QLabel(
             f"<small>Packages are installed in {escape(VENV_DIR)}</small>"
         )
-        info_label.setAlignment(Qt.AlignCenter)
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info_label.setStyleSheet("color: gray;")
         layout.addWidget(info_label)
 
@@ -301,10 +301,10 @@ class DependencyDialog(QDialog):
                 self,
                 "Installation in Progress",
                 "An installation is in progress. Are you sure you want to cancel?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
-            if reply != QMessageBox.Yes:
+            if reply != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
             self._worker.cancel()

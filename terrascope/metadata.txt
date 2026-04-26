@@ -1,8 +1,9 @@
 [general]
 name=Terrascope
 qgisMinimumVersion=3.28
+qgisMaximumVersion=4.99
 description=Search and visualize Terrascope STAC API data with time slider and time series plotting.
-version=0.8.0
+version=0.9.0
 author=Qiusheng Wu
 email=giswqs@gmail.com
 
@@ -31,6 +32,8 @@ experimental=false
 deprecated=False
 
 changelog=
+    0.9.0
+        - Compatible with QGIS 4.0 (Qt6) while keeping QGIS 3.28+ support
     0.8.0
         - Use uv for faster dependency installation (#20)
     0.7.0
