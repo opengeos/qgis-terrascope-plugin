@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 
 # Environment variable names
 ENV_USERNAME = "TERRASCOPE_USERNAME"
-ENV_PASSWORD = "TERRASCOPE_PASSWORD"
+ENV_PASSWORD = "TERRASCOPE_PASSWORD"  # nosec B105 - env var name, not a credential
 
 
 class TerrascopeAuth:

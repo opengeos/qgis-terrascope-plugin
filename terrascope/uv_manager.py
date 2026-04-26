@@ -11,7 +11,7 @@ import os
 import sys
 import platform
 import stat
-import subprocess
+import subprocess  # nosec B404 - only used for hardcoded uv binary invocations, never user input
 import tarfile
 import zipfile
 import tempfile
@@ -33,12 +33,13 @@ UV_DIR = os.path.join(CACHE_DIR, "uv")
 UV_VERSION = "0.10.6"
 
 
-def _log(message, level=Qgis.Info):
+def _log(message, level=Qgis.MessageLevel.Info):
     """Log a message to the QGIS message log.
 
     Args:
         message: The message to log.
-        level: The log level (Qgis.Info, Qgis.Warning, Qgis.Critical).
+        level: The log level (Qgis.MessageLevel.Info, Qgis.MessageLevel.Warning,
+            Qgis.MessageLevel.Critical).
     """
     QgsMessageLog.logMessage(str(message), "Terrascope", level=level)
 
@@ -198,7 +199,7 @@ def download_uv(
                 )
             else:
                 error_msg = f"Download failed: {error_msg}"
-            _log(error_msg, Qgis.Critical)
+            _log(error_msg, Qgis.MessageLevel.Critical)
             return False, error_msg
 
         if cancel_check and cancel_check():
@@ -260,7 +261,7 @@ def download_uv(
         success, verify_msg = verify_uv()
 
         if success:
-            _log("uv installed successfully", Qgis.Info)
+            _log("uv installed successfully", Qgis.MessageLevel.Info)
             return True, f"uv {UV_VERSION} installed successfully"
         else:
             # Verification failed; clean up partially installed uv so
@@ -274,7 +275,7 @@ def download_uv(
     except Exception as e:
         shutil.rmtree(UV_DIR, ignore_errors=True)
         error_msg = f"uv installation failed: {str(e)}"
-        _log(error_msg, Qgis.Critical)
+        _log(error_msg, Qgis.MessageLevel.Critical)
         return False, error_msg
     finally:
         if os.path.exists(temp_path):
@@ -304,7 +305,7 @@ def verify_uv() -> Tuple[bool, str]:
         if platform.system() == "Windows":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - hardcoded args, shell=False, uv binary path verified by os.path.exists above
             [uv_path, "--version"],
             capture_output=True,
             text=True,
@@ -315,11 +316,11 @@ def verify_uv() -> Tuple[bool, str]:
 
         if result.returncode == 0:
             version_output = result.stdout.strip()
-            _log(f"Verified uv: {version_output}", Qgis.Info)
+            _log(f"Verified uv: {version_output}", Qgis.MessageLevel.Info)
             return True, version_output
         else:
             error = result.stderr or "Unknown error"
-            _log(f"uv verification failed: {error}", Qgis.Warning)
+            _log(f"uv verification failed: {error}", Qgis.MessageLevel.Warning)
             return False, f"Verification failed: {error[:100]}"
 
     except subprocess.TimeoutExpired:
@@ -339,9 +340,9 @@ def remove_uv() -> Tuple[bool, str]:
 
     try:
         shutil.rmtree(UV_DIR)
-        _log("Removed uv installation", Qgis.Info)
+        _log("Removed uv installation", Qgis.MessageLevel.Info)
         return True, "uv removed"
     except Exception as e:
         error_msg = f"Failed to remove uv: {str(e)}"
-        _log(error_msg, Qgis.Warning)
+        _log(error_msg, Qgis.MessageLevel.Warning)
         return False, error_msg

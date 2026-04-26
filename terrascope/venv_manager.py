@@ -13,7 +13,7 @@ import importlib.util
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 - only used for hardcoded venv/uv invocations, never user input
 import sys
 
 _raw_cache_dir = os.environ.get("TERRASCOPE_CACHE_DIR")
@@ -196,7 +196,7 @@ def create_venv(progress_callback=None):
         else:
             cmd = [python_exe, "-m", "venv", VENV_DIR]
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - hardcoded `uv venv` or `python -m venv`, shell=False
             cmd,
             capture_output=True,
             text=True,
@@ -216,7 +216,7 @@ def create_venv(progress_callback=None):
                 remove_uv()
                 use_uv = False
                 cmd = [python_exe, "-m", "venv", VENV_DIR]
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 - hardcoded `python -m venv`, shell=False
                     cmd,
                     capture_output=True,
                     text=True,
@@ -246,7 +246,7 @@ def create_venv(progress_callback=None):
             progress_callback("Upgrading pip...")
 
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 - hardcoded `pip install --upgrade pip` against the venv's own python
                 [
                     get_venv_python(),
                     "-m",
@@ -263,7 +263,7 @@ def create_venv(progress_callback=None):
                 **_subprocess_kwargs(),
             )
         except Exception:
-            pass  # pip upgrade failure is non-fatal
+            pass  # nosec B110 - pip upgrade failure is non-fatal; venv works without latest pip
 
     return True, "Virtual environment created successfully"
 
@@ -363,7 +363,7 @@ def _install_single_package(python, package, env):
         cmd.append(package)
 
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - hardcoded `pip install <pkg>` via venv python, shell=False
                 cmd,
                 capture_output=True,
                 text=True,
@@ -386,7 +386,7 @@ def _install_single_package(python, package, env):
                         "--no-cache-dir",
                         package,
                     ]
-                    ssl_result = subprocess.run(
+                    ssl_result = subprocess.run(  # nosec B603 - same pip command with --trusted-host retry, hardcoded args
                         cmd,
                         capture_output=True,
                         text=True,
@@ -429,7 +429,7 @@ def _install_single_package_uv(uv_path, python, package, env):
         cmd = list(base_cmd) + [package]
 
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - hardcoded `uv pip install <pkg>`, shell=False
                 cmd,
                 capture_output=True,
                 text=True,
@@ -451,7 +451,7 @@ def _install_single_package_uv(uv_path, python, package, env):
                         "files.pythonhosted.org",
                         package,
                     ]
-                    ssl_result = subprocess.run(
+                    ssl_result = subprocess.run(  # nosec B603 - same uv pip command with --allow-insecure-host retry, hardcoded args
                         ssl_cmd,
                         capture_output=True,
                         text=True,

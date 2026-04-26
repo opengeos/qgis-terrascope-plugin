@@ -89,7 +89,9 @@ class TimeSliderDockWidget(QDockWidget):
         self._auto_play_timer = QTimer(self)
         self._auto_play_timer.timeout.connect(self._auto_play_step)
 
-        self.setAllowedAreas(Qt.TopDockWidgetArea | Qt.BottomDockWidgetArea)
+        self.setAllowedAreas(
+            Qt.DockWidgetArea.TopDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
+        )
 
         self._setup_ui()
 
@@ -134,16 +136,16 @@ class TimeSliderDockWidget(QDockWidget):
         date_font.setPointSize(14)
         date_font.setBold(True)
         self.date_label.setFont(date_font)
-        self.date_label.setAlignment(Qt.AlignCenter)
+        self.date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.date_label)
 
         # Step counter
         self.step_label = QLabel("")
-        self.step_label.setAlignment(Qt.AlignCenter)
+        self.step_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.step_label)
 
         # Slider
-        self.slider = QSlider(Qt.Horizontal)
+        self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setMinimum(0)
         self.slider.setMaximum(0)
         self.slider.setEnabled(False)
@@ -211,7 +213,7 @@ class TimeSliderDockWidget(QDockWidget):
         layout.addWidget(self.progress_bar)
 
         self.status_label = QLabel("")
-        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setVisible(False)
         layout.addWidget(self.status_label)
 
