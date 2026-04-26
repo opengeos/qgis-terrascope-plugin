@@ -14,27 +14,6 @@ from urllib.parse import urlsplit
 from urllib.request import urlopen, urlretrieve
 from urllib.error import URLError, HTTPError
 
-
-def _require_https(url):
-    """Raise ValueError unless ``url`` uses the https scheme.
-
-    The plugin only ever fetches from hardcoded GitHub URLs, but this guard
-    documents the invariant and keeps Bandit's B310 satisfied.
-
-    Args:
-        url: The URL to validate.
-
-    Returns:
-        The unchanged URL, for fluent use at call sites.
-
-    Raises:
-        ValueError: If the URL scheme is anything other than ``https``.
-    """
-    if urlsplit(url).scheme != "https":
-        raise ValueError(f"Refusing to open non-https URL: {url!r}")
-    return url
-
-
 from qgis.PyQt.QtCore import Qt, QThread, pyqtSignal
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -59,6 +38,26 @@ METADATA_URL = (
     f"/{GITHUB_BRANCH}/{PLUGIN_PATH}/metadata.txt"
 )
 ZIP_URL = f"https://github.com/{GITHUB_REPO}/archive/refs/heads/{GITHUB_BRANCH}.zip"
+
+
+def _require_https(url):
+    """Raise ValueError unless ``url`` uses the https scheme.
+
+    The plugin only ever fetches from hardcoded GitHub URLs, but this guard
+    documents the invariant and keeps Bandit's B310 satisfied.
+
+    Args:
+        url: The URL to validate.
+
+    Returns:
+        The unchanged URL, for fluent use at call sites.
+
+    Raises:
+        ValueError: If the URL scheme is anything other than ``https``.
+    """
+    if urlsplit(url).scheme != "https":
+        raise ValueError(f"Refusing to open non-https URL: {url!r}")
+    return url
 
 
 class VersionCheckWorker(QThread):
