@@ -62,9 +62,8 @@ def _install_qgis_stub() -> None:
 def _install_third_party_stubs() -> None:
     """Stub third-party packages that are only available inside QGIS.
 
-    ``osgeo`` (GDAL bindings) and ``matplotlib`` ship with QGIS but are not
-    installable into a plain CI venv. The smoke test only needs them to import,
-    not to function.
+    ``osgeo`` (GDAL bindings) ships with QGIS but is not installable into a
+    plain CI venv. The smoke test only needs it to import, not to function.
     """
     osgeo = types.ModuleType("osgeo")
     osgeo.__path__ = []
