@@ -185,7 +185,10 @@ def create_venv(progress_callback=None):
 
     os.makedirs(CACHE_DIR, exist_ok=True)
 
-    python_exe = _find_python_executable()
+    try:
+        python_exe = _find_python_executable()
+    except RuntimeError as exc:
+        return False, str(exc)
     env = _get_clean_env()
     use_uv = uv_exists()
 
