@@ -185,18 +185,26 @@ def create_venv(progress_callback=None):
 
     os.makedirs(CACHE_DIR, exist_ok=True)
 
+    python_exe = None
+    python_lookup_error = ""
     try:
         python_exe = _find_python_executable()
     except RuntimeError as exc:
-        return False, str(exc)
+        python_lookup_error = str(exc)
     env = _get_clean_env()
     use_uv = uv_exists()
 
     try:
         if use_uv:
             uv_path = get_uv_path()
-            cmd = [uv_path, "venv", "--python", python_exe, VENV_DIR]
+            uv_python = python_exe or f"{sys.version_info.major}.{sys.version_info.minor}"
+            cmd = [uv_path, "venv"]
+            if python_exe is None:
+                cmd.append("--managed-python")
+            cmd += ["--python", uv_python, VENV_DIR]
         else:
+            if python_exe is None:
+                return False, python_lookup_error
             cmd = [python_exe, "-m", "venv", VENV_DIR]
 
         result = subprocess.run(  # nosec B603 - hardcoded `uv venv` or `python -m venv`, shell=False
@@ -208,7 +216,7 @@ def create_venv(progress_callback=None):
             **_subprocess_kwargs(),
         )
         if result.returncode != 0:
-            if use_uv:
+            if use_uv and python_exe:
                 # uv venv failed; fall back to stdlib venv
                 if progress_callback:
                     progress_callback(
@@ -595,9 +603,25 @@ def _is_python_executable_name(path):
     )
 
 
+def _is_macos_qgis_app_bundle_python(path):
+    """Return True for Python binaries inside a QGIS macOS .app bundle."""
+    if not (platform.system() == "Darwin" or sys.platform == "darwin"):
+        return False
+    parts = os.path.abspath(path).split(os.sep)
+    for idx, part in enumerate(parts):
+        lower = part.lower()
+        if not (lower.startswith("qgis") and lower.endswith(".app")):
+            continue
+        return idx + 1 < len(parts) and parts[idx + 1] == "Contents"
+    return False
+
+
 def _python_candidate_matches_runtime(path):
     """Return True when a candidate is executable and matches QGIS Python."""
     if not path or not os.path.isfile(path) or not _is_python_executable_name(path):
+        return False
+
+    if _is_macos_qgis_app_bundle_python(path):
         return False
     try:
         result = subprocess.run(  # nosec B603
