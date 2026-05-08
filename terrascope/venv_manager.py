@@ -197,7 +197,9 @@ def create_venv(progress_callback=None):
     try:
         if use_uv:
             uv_path = get_uv_path()
-            uv_python = python_exe or f"{sys.version_info.major}.{sys.version_info.minor}"
+            uv_python = (
+                python_exe or f"{sys.version_info.major}.{sys.version_info.minor}"
+            )
             cmd = [uv_path, "venv"]
             if python_exe is None:
                 cmd.append("--managed-python")
