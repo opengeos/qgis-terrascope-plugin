@@ -12,9 +12,9 @@ from qgis.PyQt.QtCore import Qt, QSettings, QTimer
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolBar, QMessageBox
 
-
 TOOLBAR_OBJECT_NAME = "TerrascopeToolbar"
 MENU_TITLE = "&Terrascope"
+
 
 class TerrascopePlugin:
     """Terrascope Plugin implementation class for QGIS."""
@@ -208,7 +208,6 @@ class TerrascopePlugin:
 
         # Auto-login after a short delay to let QGIS finish loading
         QTimer.singleShot(1000, self._try_auto_login)
-
 
     def _remove_toolbar(self, toolbar):
         """Detach and schedule deletion of a plugin toolbar widget."""
